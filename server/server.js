@@ -1,0 +1,136 @@
+// Fix: Windows default DNS blocks MongoDB Atlas SRV lookups — use Google DNS instead
+require('dns').setServers(['8.8.8.8', '8.8.4.4']);
+
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const mongoose = require('mongoose');
+require('dotenv').config();
+
+const authRoutes = require('./src/routes/auth');
+const roomRoutes = require('./src/routes/rooms');
+const { errorHandler } = require('./src/middleware/errorHandler');
+const initSockets = require('./src/sockets');
+
+const app = express();
+const httpServer = http.createServer(app);
+
+// Allow same origins as Express (localhost on any port) so socket.io works from 5173, 5174, etc.
+const allowedSocketOrigin = (origin, callback) => {
+  const ok = process.env.CLIENT_URL
+    || !origin
+    || origin === 'http://localhost:5173'
+    || origin === 'http://localhost:5174'
+    || origin.startsWith('http://127.0.0.1:')
+    || (origin.startsWith('http://localhost:') && /:\d+$/.test(origin));
+  callback(null, ok ? origin : false);
+};
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: allowedSocketOrigin,
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
+
+// Middleware
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = process.env.CLIENT_URL
+      || !origin
+      || origin === 'http://localhost:5173'
+      || origin === 'http://localhost:5174'
+      || origin.startsWith('http://127.0.0.1:')
+      || (origin.startsWith('http://localhost:') && /:(\d+)$/.test(origin));
+    callback(null, allowed ? origin : false);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.use(morgan('dev'));
+app.use(express.json());
+
+// Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/rooms', roomRoutes);
+
+// Health check: /health and /api/health so localhost:5000/health returns 200
+app.get('/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.get('/', (req, res) => res.json({ app: 'NexusBoard API', health: '/health', api: '/api' }));
+
+// Socket.io
+initSockets(io);
+
+// Error handler
+app.use(errorHandler);
+
+// Start HTTP server — try PORT first, then fallback ports if in use
+const PORT = parseInt(process.env.PORT, 10) || 5000;
+const FALLBACK_PORTS = [5001, 5002, 5003];
+
+function tryListen(port) {
+  return new Promise((resolve, reject) => {
+    const onError = (err) => {
+      httpServer.removeListener('error', onError);
+      if (err.code === 'EADDRINUSE') {
+        const nextPort = port === PORT ? FALLBACK_PORTS[0] : FALLBACK_PORTS[FALLBACK_PORTS.indexOf(port) + 1];
+        if (nextPort) {
+          console.warn(`⚠️  Port ${port} in use, trying ${nextPort}...`);
+          tryListen(nextPort).then(resolve).catch(reject);
+        } else {
+          reject(err);
+        }
+      } else {
+        reject(err);
+      }
+    };
+    httpServer.once('error', onError);
+    httpServer.listen(port, () => {
+      httpServer.removeListener('error', onError);
+      console.log(`🚀 Server running on http://localhost:${port}`);
+      if (port !== PORT) {
+        console.log(`   (Port ${PORT} was in use. In client/.env set VITE_API_URL=http://localhost:${port}/api and VITE_SOCKET_URL=http://localhost:${port})`);
+      }
+      resolve();
+    });
+  });
+}
+
+tryListen(PORT).catch((err) => {
+  console.error('❌ Server failed to start:', err.message);
+  console.error('   Try closing other apps using ports 5000–5003 or set PORT=5999 in .env');
+  process.exit(1);
+});
+
+// Connect to MongoDB (non-blocking — DB failure won't crash the server)
+if (process.env.MONGO_URI) {
+  mongoose
+    .connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    })
+    .then(() => console.log('✅ MongoDB connected'))
+    .catch((err) => {
+      console.error('❌ MongoDB connection error:', err.message);
+      console.warn('⚠️  Running without database — create/join room may fail until DB is available');
+    });
+} else {
+  console.warn('⚠️  No MONGO_URI in .env — running without database');
+}
+
+// Log unhandled errors so the server doesn't exit silently
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled rejection at', promise, 'reason:', reason);
+});
+
+module.exports = { io };
