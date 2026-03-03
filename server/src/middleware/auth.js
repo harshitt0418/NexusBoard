@@ -11,16 +11,26 @@ const getJwtSecret = () => {
 
 const authenticate = async (req, res, next) => {
     try {
+        // Check Authorization header first, then cookie
+        let token = null;
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+        }
+
+        if (!token) {
             return res.status(401).json({ message: 'No token provided' });
         }
+
         const secret = getJwtSecret();
         if (!secret) return res.status(503).json({ message: 'Server auth not configured' });
-        const token = authHeader.split(' ')[1];
+
         const decoded = jwt.verify(token, secret);
         const user = await User.findById(decoded.id).select('-password');
         if (!user) return res.status(401).json({ message: 'User not found' });
+
         req.user = user;
         next();
     } catch (err) {
@@ -32,11 +42,17 @@ const authenticate = async (req, res, next) => {
 const optionalAuth = async (req, res, next) => {
     req.user = null;
     try {
+        let token = null;
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+        }
+
+        if (token) {
             const secret = getJwtSecret();
             if (secret) {
-                const token = authHeader.split(' ')[1];
                 const decoded = jwt.verify(token, secret);
                 const user = await User.findById(decoded.id).select('-password');
                 req.user = user || null;

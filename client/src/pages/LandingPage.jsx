@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { renderCanvas, destroyCanvas } from '../components/ui/canvas';
 import { useAuth } from '../context/AuthContext';
+import { IconLogo, IconStar, IconPalette, IconVideo, IconShield, IconChat, IconZap, IconSmartphone, IconPen, IconSync } from '../components/ui/Icons';
 
 // Lazy-load framer-motion + scroll animation — not needed on first paint
 const ContainerScroll = lazy(() =>
@@ -27,7 +28,7 @@ export default function LandingPage() {
     }, []);
 
     return (
-        <div style={{ minHeight: '100dvh', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 50%, #F0F5FF 100%)', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ minHeight: '100dvh', background: '#f7f5f0', overflow: 'hidden', position: 'relative' }}>
             {/* Doodle canvas — full-page trail animation */}
             <canvas
                 id="doodle-canvas"
@@ -42,14 +43,14 @@ export default function LandingPage() {
                 }}
             />
             {/* Decorative blobs */}
-            <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%)', top: -100, right: -100, pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)', bottom: -80, left: -80, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(26,26,46,0.06) 0%, transparent 70%)', top: -100, right: -100, pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(233,168,76,0.07) 0%, transparent 70%)', bottom: -80, left: -80, pointerEvents: 'none' }} />
 
             {/* Nav */}
             <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', position: 'relative', zIndex: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#fff', fontSize: '1.1rem' }}>⬡</span>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        <IconLogo size={20} />
                     </div>
                     <span style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--color-text)', letterSpacing: '-0.01em' }}>NexusBoard</span>
                 </div>
@@ -57,9 +58,6 @@ export default function LandingPage() {
                 {user ? (
                     /* ── Logged-in state ─────────────────────── */
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>
-                            Dashboard
-                        </button>
                         {/* Profile avatar chip */}
                         <div
                             onClick={() => navigate('/dashboard')}
@@ -77,8 +75,8 @@ export default function LandingPage() {
                 ) : (
                     /* ── Logged-out state ────────────────────── */
                     <div style={{ display: 'flex', gap: 10 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/auth')}>Sign In</button>
-                        <button className="btn btn-primary btn-sm" onClick={() => navigate('/auth')}>Sign Up</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/login')}>Sign In</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => navigate('/register')}>Sign Up</button>
                     </div>
                 )}
             </nav>
@@ -86,12 +84,12 @@ export default function LandingPage() {
             {/* Hero */}
             <main style={{ maxWidth: 780, margin: '0 auto', padding: '80px 24px 40px', textAlign: 'center', position: 'relative', zIndex: 10 }}>
                 {/* Badge */}
-                <div className="animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--color-accent-soft)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 'var(--radius-full)', padding: '6px 16px', marginBottom: 28 }}>
+                <div className="animate-fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--color-accent-soft)', border: '1px solid rgba(26,26,46,0.12)', borderRadius: 'var(--radius-full)', padding: '6px 16px', marginBottom: 28 }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--color-success)', display: 'inline-block' }} />
                     <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--color-accent)' }}>Real-time collaboration, reimagined</span>
                 </div>
 
-                <h1 className="animate-fade-in stagger-1" style={{ marginBottom: 20, background: 'linear-gradient(135deg, #0F172A 0%, #3B82F6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                <h1 className="animate-fade-in stagger-1" style={{ marginBottom: 20, color: '#1a1a2e' }}>
                     Collaborate on ideas<br />in real&nbsp;time
                 </h1>
 
@@ -101,8 +99,8 @@ export default function LandingPage() {
 
                 {/* CTAs */}
                 <div className="animate-fade-in stagger-3" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/create')} style={{ width: '100%', maxWidth: 320 }}>
-                        <span>✦</span> Create a Room
+                    <button className="btn btn-primary btn-lg" onClick={() => navigate('/create')} style={{ width: '100%', maxWidth: 320, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                        <IconStar size={20} /> Create a Room
                     </button>
 
                     <div style={{ display: 'flex', width: '100%', maxWidth: 320, gap: 10 }}>
@@ -140,7 +138,7 @@ export default function LandingPage() {
                                 </p>
                                 <h2 style={{ color: '#0F172A', marginBottom: 0 }}>
                                     Your team's infinite canvas,<br />
-                                    <span style={{ background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                    <span style={{ color: '#e9a84c' }}>
                                         live and in sync
                                     </span>
                                 </h2>
@@ -168,15 +166,15 @@ export default function LandingPage() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
                     {[
-                        { icon: '🎨', title: 'Infinite Canvas', desc: 'Draw freely with pens, shapes, arrows and sticky notes — synced live across every participant.' },
-                        { icon: '🎥', title: 'Live Video', desc: 'WebRTC-powered video tiles so your team can see each other without leaving the board.' },
-                        { icon: '🔐', title: 'Smart Permissions', desc: 'The host decides who can draw, who can view, and who can join — with one click.' },
-                        { icon: '💬', title: 'Contextual Chat', desc: 'A slide-in chat panel with typing indicators, so conversation stays close to the canvas.' },
-                        { icon: '⚡', title: 'Instant Rooms', desc: 'Create a collaboration room in seconds and share a link — no sign-up required for guests.' },
-                        { icon: '📱', title: 'Touch Friendly', desc: 'Fully responsive on tablets and phones — draw with your finger or a stylus on the go.' },
+                        { Icon: IconPalette, title: 'Infinite Canvas', desc: 'Draw freely with pens, shapes, arrows and sticky notes — synced live across every participant.' },
+                        { Icon: IconVideo, title: 'Live Video', desc: 'WebRTC-powered video tiles so your team can see each other without leaving the board.' },
+                        { Icon: IconShield, title: 'Smart Permissions', desc: 'The host decides who can draw, who can view, and who can join — with one click.' },
+                        { Icon: IconChat, title: 'Contextual Chat', desc: 'A slide-in chat panel with typing indicators, so conversation stays close to the canvas.' },
+                        { Icon: IconZap, title: 'Instant Rooms', desc: 'Create a collaboration room in seconds and share a link — no sign-up required for guests.' },
+                        { Icon: IconSmartphone, title: 'Touch Friendly', desc: 'Fully responsive on tablets and phones — draw with your finger or a stylus on the go.' },
                     ].map((f, i) => (
                         <div key={i} className="card card-padded card-hover">
-                            <div style={{ fontSize: '1.75rem', marginBottom: 14 }}>{f.icon}</div>
+                            <div style={{ marginBottom: 14, color: 'var(--color-accent)' }}><f.Icon size={28} /></div>
                             <h4 style={{ marginBottom: 8 }}>{f.title}</h4>
                             <p style={{ fontSize: '0.875rem', margin: 0 }}>{f.desc}</p>
                         </div>
@@ -194,22 +192,22 @@ export default function LandingPage() {
 
 /* ── Mini Canvas Preview ──────────────────────────────────────────────────── */
 function CanvasPreview() {
-    const tools = ['✏️', '⬜', '⭕', '↗️', '🖊️', '🗑️'];
+    const toolIcons = [IconPen, IconPen, IconPen];
     const participants = [
-        { name: 'Alex', color: '#3B82F6', x: '15%', y: '30%' },
+        { name: 'Alex', color: '#e9a84c', x: '15%', y: '30%' },
         { name: 'Mia', color: '#8B5CF6', x: '55%', y: '55%' },
         { name: 'Sam', color: '#10B981', x: '75%', y: '25%' },
     ];
     const strokes = [
-        { d: 'M 60 120 Q 140 60 220 130 T 380 110', color: '#3B82F6', opacity: 0.7 },
+        { d: 'M 60 120 Q 140 60 220 130 T 380 110', color: '#e9a84c', opacity: 0.7 },
         { d: 'M 300 200 Q 400 140 500 190 T 680 160', color: '#8B5CF6', opacity: 0.6 },
         { d: 'M 100 280 L 260 280 L 260 360 L 100 360 Z', color: '#10B981', opacity: 0.5 },
         { d: 'M 420 240 Q 480 200 540 240 Q 600 280 660 240', color: '#F59E0B', opacity: 0.6 },
     ];
     const stickyNotes = [
         { text: 'Whiteboard', x: 30, y: 60, color: '#FEF9C3', border: '#F59E0B' },
-        { text: 'Live video', x: 420, y: 300, color: '#EFF6FF', border: '#3B82F6' },
-        { text: 'Sync 🔄', x: 620, y: 80, color: '#F0FDF4', border: '#10B981' },
+        { text: 'Live video', x: 420, y: 300, color: '#fff8ee', border: '#e9a84c' },
+        { text: 'Sync', x: 620, y: 80, color: '#F0FDF4', border: '#10B981' },
     ];
 
     return (
@@ -217,8 +215,8 @@ function CanvasPreview() {
             {/* Toolbar */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px', background: '#16213e', borderBottom: '1px solid #0f3460' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#fff', fontSize: '0.75rem' }}>⬡</span>
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e9a84c' }}>
+                        <IconLogo size={14} />
                     </div>
                     <span style={{ color: '#e2e8f0', fontSize: '0.8125rem', fontWeight: 600 }}>NexusBoard</span>
                     <span style={{ color: '#475569', fontSize: '0.75rem', marginLeft: 8 }}>Team Ideation Room</span>
@@ -229,7 +227,9 @@ function CanvasPreview() {
                             {p.name[0]}
                         </div>
                     ))}
-                    <div style={{ background: '#0f3460', color: '#94a3b8', fontSize: '0.6875rem', padding: '0 8px', borderRadius: 4, display: 'flex', alignItems: 'center' }}>● LIVE</div>
+                    <div style={{ background: '#0f3460', color: '#94a3b8', fontSize: '0.6875rem', padding: '0 8px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} /> LIVE
+                    </div>
                 </div>
             </div>
 
@@ -237,9 +237,9 @@ function CanvasPreview() {
             <div style={{ flex: 1, position: 'relative', display: 'flex' }}>
                 {/* Tool palette */}
                 <div style={{ width: 40, background: '#16213e', borderRight: '1px solid #0f3460', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, gap: 4 }}>
-                    {tools.map((t, i) => (
-                        <div key={i} style={{ width: 30, height: 30, borderRadius: 6, background: i === 0 ? '#3B82F6' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', cursor: 'pointer' }}>
-                            {t}
+                    {toolIcons.map((Icon, i) => (
+                        <div key={i} style={{ width: 30, height: 30, borderRadius: 6, background: i === 0 ? '#e9a84c' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: i === 0 ? '#1a1a2e' : '#94a3b8', cursor: 'pointer' }}>
+                            <Icon size={16} />
                         </div>
                     ))}
                 </div>

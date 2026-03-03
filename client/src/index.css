@@ -1,5 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 232 29% 19%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 37 78% 60%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 232 29% 19%;
+    --radius: 0.5rem;
+  }
+}
+
 /* Framer Motion useScroll: scroll container needs non-static position for offset calculation */
 html, body, #root {
   position: relative;
@@ -7,15 +36,17 @@ html, body, #root {
 
 /* ── Design Tokens ─────────────────────────────────────────────────────────── */
 :root {
-  --color-bg: #F8FAFC;
+  --color-bg: #f7f5f0;
   --color-surface: #FFFFFF;
-  --color-surface-2: #F1F5F9;
-  --color-border: #E2E8F0;
-  --color-border-light: #F1F5F9;
-  --color-accent: #3B82F6;
-  --color-accent-hover: #2563EB;
-  --color-accent-soft: #EFF6FF;
-  --color-accent-ring: rgba(59, 130, 246, 0.2);
+  --color-surface-2: #f0ede8;
+  --color-border: #e0dbd4;
+  --color-border-light: #ece9e4;
+  --color-accent: #1a1a2e;
+  --color-accent-hover: #2d2d50;
+  --color-accent-soft: rgba(26, 26, 46, 0.06);
+  --color-accent-ring: rgba(26, 26, 46, 0.14);
+  --color-gold: #e9a84c;
+  --color-gold-soft: rgba(233, 168, 76, 0.1);
   --color-success: #10B981;
   --color-success-soft: #ECFDF5;
   --color-warning: #F59E0B;
@@ -25,14 +56,14 @@ html, body, #root {
   --color-text: #0F172A;
   --color-text-secondary: #475569;
   --color-muted: #94A3B8;
-  --color-editor-glow: rgba(59, 130, 246, 0.35);
+  --color-editor-glow: rgba(26, 26, 46, 0.25);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10), 0 4px 8px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.12);
-  --shadow-float: 0 8px 30px rgba(59, 130, 246, 0.12), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-float: 0 8px 30px rgba(26, 26, 46, 0.10), 0 2px 8px rgba(0,0,0,0.06);
 
   --radius-xs: 4px;
   --radius-sm: 8px;
@@ -49,7 +80,7 @@ html, body, #root {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --header-h: 60px;
   --panel-w: 280px;
-  --tool-panel-w: 56px;
+  --tool-panel-w: 140px;
   --video-strip-h: 120px;
 }
 
@@ -195,11 +226,11 @@ small { font-size: 0.8125rem; color: var(--color-muted); }
 .btn-primary {
   background: var(--color-accent);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(26, 26, 46, 0.25);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 16px rgba(26, 26, 46, 0.30);
   transform: translateY(-1px);
 }
 .btn-secondary {
@@ -248,7 +279,7 @@ small { font-size: 0.8125rem; color: var(--color-muted); }
   transition: all var(--transition-fast);
 }
 .btn-icon:hover { background: var(--color-surface-2); color: var(--color-text); }
-.btn-icon.active { background: var(--color-accent-soft); color: var(--color-accent); }
+.btn-icon.active { background: var(--color-gold-soft); color: var(--color-gold); }
 
 /* ── Input ──────────────────────────────────────────────────────────────────── */
 .input {
@@ -298,7 +329,7 @@ small { font-size: 0.8125rem; color: var(--color-muted); }
   font-weight: 600;
   border-radius: var(--radius-full);
 }
-.badge-blue  { background: var(--color-accent-soft); color: var(--color-accent); }
+.badge-blue  { background: var(--color-gold-soft); color: #b8822e; font-weight: 600; }
 .badge-green { background: var(--color-success-soft); color: var(--color-success); }
 .badge-amber { background: var(--color-warning-soft); color: var(--color-warning); }
 .badge-red   { background: var(--color-danger-soft); color: var(--color-danger); }

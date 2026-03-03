@@ -5,8 +5,10 @@ const userSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true, maxlength: 50 },
         email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-        password: { type: String, required: true, minlength: 6 },
+        password: { type: String, minlength: 6 }, // Optional for Google users
         avatar: { type: String, default: '' },
+        googleId: { type: String, unique: true, sparse: true }, // For Google OAuth
+        isVerified: { type: Boolean, default: false }, // Email verification status
     },
     { timestamps: true }
 );
@@ -18,6 +20,7 @@ userSchema.pre('save', async function () {
 });
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
+    if (!this.password) return false;
     return bcrypt.compare(candidatePassword, this.password);
 };
 

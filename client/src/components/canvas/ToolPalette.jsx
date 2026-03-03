@@ -1,41 +1,48 @@
+import { IconPen, IconEraser, IconSelect, IconUndo, IconTrash, IconPdf, IconImage, IconImageOff, IconArrowLeft, IconArrowRight, IconPlus, IconMinus, IconSync } from '../ui/Icons';
+
 const TOOLS = [
-    { id: 'pen', icon: '✏️', label: 'Pen' },
-    { id: 'eraser', icon: '◻', label: 'Eraser' },
-    { id: 'select', icon: '⊹', label: 'Select' },
+    { id: 'pen', Icon: IconPen, label: 'Pen' },
+    { id: 'eraser', Icon: IconEraser, label: 'Eraser' },
+    { id: 'select', Icon: IconSelect, label: 'Select' },
 ];
 
 const COLORS = ['#0F172A', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#F97316', '#FFFFFF'];
 
 const WIDTHS = [2, 4, 8, 14];
 
-export default function ToolPalette({ tool, setTool, color, setColor, strokeWidth, setStrokeWidth, onUndo, onClear, canClear }) {
+export default function ToolPalette({ tool, setTool, color, setColor, strokeWidth, setStrokeWidth, onUndo, onClear, canClear, isHost = false, onOpenPdfClick, onPasteImage, onClearPhotos, photosCount = 0, pdfPage, pdfTotalPages, onPrevPdfPage, onNextPdfPage, bgScale, onBgZoomIn, onBgZoomOut, onBgReset }) {
     return (
         <div style={{
             width: 'var(--tool-panel-w)',
+            minWidth: 'var(--tool-panel-w)',
             background: 'var(--color-surface)',
             borderRight: '1px solid var(--color-border)',
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            padding: '14px 0', gap: 6, overflowY: 'auto',
+            padding: '14px 8px', gap: 6, overflowY: 'auto', overflowX: 'hidden',
             boxShadow: 'var(--shadow-sm)',
             zIndex: 50,
             gridArea: 'tools',
         }}>
             {/* Tool buttons */}
-            {TOOLS.map(t => (
-                <button key={t.id}
-                    className={`btn-icon ${tool === t.id ? 'active' : ''}`}
-                    title={t.label}
-                    onClick={() => setTool(t.id)}
-                    style={{
-                        width: 40, height: 40, fontSize: '1.1rem', borderRadius: 'var(--radius-sm)',
-                        background: tool === t.id ? 'var(--color-accent-soft)' : 'transparent',
-                        color: tool === t.id ? 'var(--color-accent)' : 'var(--color-text-secondary)',
-                        boxShadow: tool === t.id ? '0 0 0 2px var(--color-accent-ring)' : 'none',
-                        transition: 'all var(--transition-fast)'
-                    }}>
-                    {t.icon}
-                </button>
-            ))}
+            {TOOLS.map(t => {
+                const Icon = t.Icon;
+                return (
+                    <button key={t.id}
+                        className={`btn-icon ${tool === t.id ? 'active' : ''}`}
+                        title={t.label}
+                        onClick={() => setTool(t.id)}
+                        style={{
+                            width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+                            background: tool === t.id ? 'var(--color-accent-soft)' : 'transparent',
+                            color: tool === t.id ? 'var(--color-accent)' : 'var(--color-text-secondary)',
+                            boxShadow: tool === t.id ? '0 0 0 2px var(--color-accent-ring)' : 'none',
+                            transition: 'all var(--transition-fast)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                        <Icon size={20} />
+                    </button>
+                );
+            })}
 
             {/* Divider */}
             <div style={{ width: 32, height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
@@ -74,13 +81,121 @@ export default function ToolPalette({ tool, setTool, color, setColor, strokeWidt
             {/* Divider */}
             <div style={{ width: 32, height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
 
+            {/* Insert: PDF & paste image (host only) */}
+            {(isHost && (onOpenPdfClick || onPasteImage)) && (
+                <>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)', fontWeight: 600, marginTop: 4 }}>Insert</div>
+                    {onOpenPdfClick && (
+                        <button className="btn-icon" title="Open PDF" onClick={onOpenPdfClick}
+                            style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <IconPdf size={20} />
+                        </button>
+                    )}
+                    {onPasteImage && (
+                        <button className="btn-icon" title="Paste image (screenshot)" onClick={onPasteImage}
+                            style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <IconImage size={20} />
+                        </button>
+                    )}
+                    {photosCount > 0 && onClearPhotos && (
+                        <button className="btn-icon" title="Remove all photos" onClick={onClearPhotos}
+                            style={{ width: 40, height: 40, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <IconImageOff size={20} />
+                        </button>
+                    )}
+
+                    {/* Photos move/resize (eraser does not touch photos) */}
+                    {photosCount > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 2, flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Move: Select tool</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                <button className="btn-icon" title="Zoom out (-)" onClick={onBgZoomOut}
+                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <IconMinus size={16} />
+                                </button>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', minWidth: 48, textAlign: 'center' }}>
+                                    {Math.round((bgScale || 1) * 100)}%
+                                </span>
+                                <button className="btn-icon" title="Zoom in (+)" onClick={onBgZoomIn}
+                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <IconPlus size={16} />
+                                </button>
+                            </div>
+                            <button className="btn-icon" title="Reset background position/size" onClick={onBgReset}
+                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <IconSync size={16} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* PDF page: host can change page, participants see read-only */}
+                    {pdfTotalPages >= 1 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>PDF page</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                {isHost && onPrevPdfPage && (
+                                    <button className="btn-icon" title="Previous page" onClick={onPrevPdfPage} disabled={pdfPage <= 1}
+                                        style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pdfPage <= 1 ? 0.5 : 1 }}>
+                                        <IconArrowLeft size={16} />
+                                    </button>
+                                )}
+                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', minWidth: 48, textAlign: 'center' }}>
+                                    {pdfPage} / {pdfTotalPages}
+                                </span>
+                                {isHost && onNextPdfPage && (
+                                    <button className="btn-icon" title="Next page" onClick={onNextPdfPage} disabled={pdfPage >= pdfTotalPages}
+                                        style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: pdfPage >= pdfTotalPages ? 0.5 : 1 }}>
+                                        <IconArrowRight size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <div style={{ width: 32, height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+                </>
+            )}
+            {/* Photos/PDF zoom and read-only PDF page for participants (when no Insert section) */}
+            {!isHost && (photosCount > 0 || pdfTotalPages >= 1) && (
+                <>
+                    {photosCount > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 2, flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Move: Select tool</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                <button className="btn-icon" title="Zoom out (-)" onClick={onBgZoomOut}
+                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <IconMinus size={16} />
+                                </button>
+                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', minWidth: 48, textAlign: 'center' }}>
+                                    {Math.round((bgScale || 1) * 100)}%
+                                </span>
+                                <button className="btn-icon" title="Zoom in (+)" onClick={onBgZoomIn}
+                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <IconPlus size={16} />
+                                </button>
+                            </div>
+                            <button className="btn-icon" title="Reset position/size" onClick={onBgReset}
+                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <IconSync size={16} />
+                            </button>
+                        </div>
+                    )}
+                    {pdfTotalPages >= 1 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>PDF page</div>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)' }}>{pdfPage} / {pdfTotalPages}</span>
+                        </div>
+                    )}
+                    <div style={{ width: 32, height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+                </>
+            )}
+
             {/* Undo */}
-            <button className="btn-icon" title="Undo (Ctrl+Z)" onClick={onUndo} style={{ width: 40, height: 40, fontSize: '1rem' }}>↩</button>
+            <button className="btn-icon" title="Undo (Ctrl+Z)" onClick={onUndo} style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconUndo size={20} /></button>
 
             {/* Clear (host only) */}
             {canClear && (
                 <button className="btn-icon" title="Clear board" onClick={onClear}
-                    style={{ width: 40, height: 40, fontSize: '0.95rem', color: 'var(--color-danger)' }}>🗑</button>
+                    style={{ width: 40, height: 40, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconTrash size={20} /></button>
             )}
         </div>
     );

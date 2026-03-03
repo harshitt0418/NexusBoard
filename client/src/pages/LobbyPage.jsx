@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { renderCanvas, destroyCanvas } from '../components/ui/canvas';
 import { useSocket } from '../context/SocketContext';
 import { useRoom } from '../context/RoomContext';
 import { useToast } from '../components/ui/Toast';
+import { IconCrown, IconPen, IconLoader, IconLightbulb, IconPlay, IconArrowLeft } from '../components/ui/Icons';
+import '../styles/lobby.css';
 
 const Avatar = ({ name, isHost, isEditor }) => {
     const initial = name?.[0]?.toUpperCase() || '?';
-    const color = isHost ? 'var(--color-accent)' : isEditor ? 'var(--color-success)' : 'var(--color-muted)';
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-            <div style={{ width: 38, height: 38, borderRadius: '50%', background: color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, flexShrink: 0 }}>{initial}</div>
+        <div className="lobby-participant-item">
+            <div className={`lobby-participant-avatar${isHost ? ' host-avatar' : ''}`}>{initial}</div>
             <div>
-                <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{name}</div>
-                <div style={{ fontSize: '0.75rem', color: isHost ? 'var(--color-accent)' : isEditor ? 'var(--color-success)' : 'var(--color-muted)' }}>
-                    {isHost ? '👑 Host' : isEditor ? '✏︎ Editor' : 'Viewer'}
+                <div className="lobby-participant-name">{name}</div>
+                <div className={`lobby-participant-role${isHost ? ' is-host-role' : ''}`}>
+                    {isHost ? <><IconCrown size={11} /> Host</> : isEditor ? <><IconPen size={11} /> Editor</> : 'Viewer'}
                 </div>
             </div>
         </div>
@@ -75,6 +77,10 @@ export default function LobbyPage() {
             if (retryTimerRef.current) { clearInterval(retryTimerRef.current); retryTimerRef.current = null; }
             if (retryJoinTimerRef.current) { clearInterval(retryJoinTimerRef.current); retryJoinTimerRef.current = null; }
             initRoom(state, userId, userName);
+            // If session already started, skip lobby and go directly to room (late joiner)
+            if (state.sessionStarted) {
+                navigate(`/room/${roomId}`, { state: { userId, userName, isHost } });
+            }
         });
 
         socket.on('error', ({ message } = {}) => {
@@ -149,17 +155,20 @@ export default function LobbyPage() {
         navigate('/');
     };
 
+    useEffect(() => { renderCanvas(); return () => destroyCanvas(); }, []);
+
     // ── Pending: participants see "Connecting..."; host sees lobby immediately so they're never stuck ──
     if (joinStatus === 'pending' && !isHost) {
         return (
-            <div style={{ minHeight: '100dvh', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                <div className="card card-padded animate-fade-in" style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: 16, animation: 'spin 3s linear infinite' }}>⏳</div>
-                    <h3 style={{ marginBottom: 8 }}>Connecting to room…</h3>
-                    <p style={{ fontSize: '0.9375rem', marginBottom: 24 }}>
-                        Checking if the host is in the lobby…
-                    </p>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>Room: <strong>{roomId}</strong></p>
+            <div className="lobby-centered-wrap">
+                <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
+                <div className="lobby-centered-card animate-fade-in">
+                    <div className="lobby-centered-spinner" style={{ animation: 'spin 2.5s linear infinite' }}>
+                        <IconLoader size={26} />
+                    </div>
+                    <div className="lobby-centered-title">Connecting to room…</div>
+                    <p className="lobby-centered-desc">Checking if the host is in the lobby…</p>
+                    <div className="lobby-room-badge">{roomId}</div>
                 </div>
             </div>
         );
@@ -168,23 +177,26 @@ export default function LobbyPage() {
     // ── Host-not-present: only show lobby to participant after host has joined ──
     if (hostNotPresent) {
         return (
-            <div style={{ minHeight: '100dvh', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-                <div className="card card-padded animate-fade-in" style={{ maxWidth: 400, width: '100%', textAlign: 'center' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: 16, animation: 'spin 3s linear infinite' }}>⏳</div>
-                    <h3 style={{ marginBottom: 8 }}>Host hasn't joined yet</h3>
-                    <p style={{ fontSize: '0.9375rem', marginBottom: 24 }}>
-                        The host needs to open the room before you can join. Retrying automatically every 5 seconds…
+            <div className="lobby-centered-wrap">
+                <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
+                <div className="lobby-centered-card animate-fade-in">
+                    <div className="lobby-centered-spinner" style={{ animation: 'spin 2.5s linear infinite' }}>
+                        <IconLoader size={26} />
+                    </div>
+                    <div className="lobby-centered-title">Host hasn't joined yet</div>
+                    <p className="lobby-centered-desc">
+                        The host needs to open the room first. Retrying automatically every 5 seconds…
                     </p>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                        <button className="btn btn-primary" style={{ flex: 1 }}
+                    <div className="lobby-room-badge">{roomId}</div>
+                    <div className="lobby-btn-row">
+                        <button className="lobby-btn-dark"
                             onClick={() => socket.emit('join_room', { roomId, userId, userName, isHost })}>
                             Retry Now
                         </button>
-                        <button className="btn btn-secondary" onClick={() => { clearRoom(); navigate('/'); }}>
+                        <button className="lobby-btn-ghost" onClick={() => { clearRoom(); navigate('/'); }}>
                             Leave
                         </button>
                     </div>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginTop: 16 }}>Room: <strong>{roomId}</strong></p>
                 </div>
             </div>
         );
@@ -192,65 +204,97 @@ export default function LobbyPage() {
     // ── Joined: host is present, show full lobby ──────────────────────────────
 
     return (
-        <div style={{ minHeight: '100dvh', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div style={{ width: '100%', maxWidth: 520 }}>
-                {/* Header card */}
-                <div className="card card-padded animate-fade-in" style={{ marginBottom: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--color-success)', boxShadow: '0 0 0 3px var(--color-success-soft)' }} />
-                                <span style={{ fontSize: '0.8rem', color: 'var(--color-success)', fontWeight: 600 }}>Waiting to start</span>
-                            </div>
-                            <h3 style={{ marginBottom: 4 }}>Room Lobby</h3>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <code style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--color-accent)' }}>{roomId}</code>
-                                <button className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                                    onClick={() => { navigator.clipboard.writeText(roomId); toast('Copied!', 'success'); }}>Copy</button>
-                            </div>
-                        </div>
-                        {isHost && <span className="badge badge-blue">Host</span>}
-                    </div>
+        <div className="lobby-wrap">
+            <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
+            <div className="lobby-card animate-fade-in">
 
-                    {isHost ? (
-                        <div style={{ padding: '12px 16px', background: 'var(--color-accent-soft)', borderRadius: 'var(--radius-sm)', fontSize: '0.875rem', color: 'var(--color-accent)' }}>
-                            {joinStatus === 'pending' ? '⏳ Connecting to room…' : '💡 Share the Room ID with participants, then click "Start Session" when ready.'}
+                {/* ── Left dark hero ── */}
+                <div className="lobby-left">
+                    <div className="lobby-left-top">
+                        <div className="lobby-status-pill">
+                            <span className="lobby-status-dot" />
+                            Waiting to start
                         </div>
-                    ) : (
-                        <div style={{ padding: '12px 16px', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-sm)', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                            {participants.some(p => p.isHost) ? '⏳ Waiting for the host to start the session…' : '⏳ Waiting for the host to join the lobby…'}
+                        <div>
+                            <div className="lobby-eyebrow" style={{ marginBottom: 10 }}>
+                                <span className="lobby-eyebrow-dot" />
+                                {isHost ? 'Host View' : 'Participant View'}
+                            </div>
+                            <h2 className="lobby-title">Room<br />Lobby</h2>
+                            <p className="lobby-desc" style={{ marginTop: 12 }}>
+                                {isHost
+                                    ? 'Share the Room ID with participants, then start the session when ready.'
+                                    : 'Waiting for the host to begin the session.'}
+                            </p>
                         </div>
-                    )}
+                        <div className="lobby-room-id-box">
+                            <div className="lobby-room-id-label">Room ID</div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                                <div className="lobby-room-id-value">{roomId}</div>
+                                <button
+                                    onClick={() => { navigator.clipboard.writeText(roomId); toast('Copied!', 'success'); }}
+                                    style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: 'rgba(255,255,255,0.65)', padding: '5px 12px', cursor: 'pointer', fontSize: '0.8rem', fontFamily: "'DM Sans', sans-serif", transition: 'background 0.15s' }}
+                                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.14)'}
+                                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="lobby-left-bottom">
+                        <button className="lobby-back-btn" onClick={leaveRoom}>
+                            <IconArrowLeft size={15} /> Leave Room
+                        </button>
+                    </div>
                 </div>
 
-                {/* Participants */}
-                <div className="card animate-fade-in stagger-1" style={{ marginBottom: 16 }}>
-                    <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <h4>Participants</h4>
-                        <span className="badge badge-blue">{participants.length}</span>
+                {/* ── Right panel: participants + actions ── */}
+                <div className="lobby-right">
+                    {/* Hint banner */}
+                    {isHost ? (
+                        <div className="lobby-hint">
+                            {joinStatus === 'pending'
+                                ? <><IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Connecting to room…</>
+                                : <><IconLightbulb size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Share the Room ID, then click <strong>Start Session</strong> when everyone's here.</>}
+                        </div>
+                    ) : (
+                        <div className="lobby-hint">
+                            <IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                            {participants.some(p => p.isHost) ? 'Waiting for the host to start the session…' : 'Waiting for the host to join the lobby…'}
+                        </div>
+                    )}
+
+                    {/* Participants */}
+                    <div className="lobby-section-head">
+                        <div className="lobby-section-title">Participants</div>
+                        <div className="lobby-count-badge">{participants.length}</div>
                     </div>
-                    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }}>
+
+                    <div className="lobby-participants-list" style={{ marginBottom: 24 }}>
                         {participants.map(p => (
                             <Avatar key={p.userId} name={p.userName} isHost={p.isHost} isEditor={false} />
                         ))}
                         {participants.length === 0 && (
-                            <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-muted)', fontSize: '0.875rem' }}>
-                                {isHost ? 'Waiting for participants…' : 'Waiting for the host to join…'}
+                            <div style={{ padding: '20px 0', textAlign: 'center', color: 'rgba(26,26,46,0.38)', fontSize: '0.875rem', fontFamily: "'DM Sans', sans-serif" }}>
+                                {isHost ? 'Waiting for participants to join…' : 'Waiting for the host…'}
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Actions */}
-                <div className="animate-fade-in stagger-2" style={{ display: 'flex', gap: 10 }}>
-                    {isHost && (
-                        <button className="btn btn-primary" style={{ flex: 1 }} onClick={startSession}>
-                            ▶ Start Session
-                        </button>
-                    )}
-                    <button className="btn btn-secondary" style={{ flex: isHost ? '0 0 auto' : 1 }} onClick={leaveRoom}>
-                        Leave
-                    </button>
+                    {/* Actions */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {isHost && (
+                            <button className="lobby-btn" onClick={startSession}>
+                                <IconPlay size={17} /> Start Session
+                            </button>
+                        )}
+                        {!isHost && (
+                            <button className="lobby-btn-outline" onClick={leaveRoom}>
+                                Leave Room
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

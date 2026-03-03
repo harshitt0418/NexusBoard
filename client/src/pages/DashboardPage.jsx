@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { renderCanvas, destroyCanvas } from '../components/ui/canvas';
+import { IconLogo, IconClose, IconRocket, IconLink } from '../components/ui/Icons';
 
 export default function DashboardPage() {
     const { user, logout } = useAuth();
@@ -23,100 +25,72 @@ export default function DashboardPage() {
         ? `hsl(${user.name.charCodeAt(0) * 37 % 360}, 60%, 50%)`
         : 'var(--color-accent)';
 
+    const greeting = () => {
+        const h = new Date().getHours();
+        if (h < 12) return 'Good morning';
+        if (h < 18) return 'Good afternoon';
+        return 'Good evening';
+    };
+
+    useEffect(() => { renderCanvas(); return () => destroyCanvas(); }, []);
+
     return (
-        <div style={{ minHeight: '100dvh', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 50%, #F0F5FF 100%)', position: 'relative' }}>
+        <div style={{ minHeight: '100dvh', background: '#f7f5f0', overflow: 'hidden', position: 'relative' }}>
+            <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
             {/* Nav */}
             <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 32px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)', position: 'sticky', top: 0, zIndex: 50, boxShadow: 'var(--shadow-xs)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => navigate('/')}>
-                    <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#fff', fontSize: '1rem' }}>⬡</span>
+                    <div style={{ width: 32, height: 32, borderRadius: 9, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                        <IconLogo size={18} />
                     </div>
                     <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-text)' }}>NexusBoard</span>
                 </div>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowLogoutModal(true)}>
-                    Sign Out
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
+                            {avatarInitials}
+                        </div>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text)' }}>{user?.name}</span>
+                    </div>
+                    <button className="btn btn-ghost btn-sm" onClick={() => setShowLogoutModal(true)}>Sign Out</button>
+                </div>
             </nav>
 
-            <main style={{ maxWidth: 900, margin: '0 auto', padding: '40px 24px' }}>
+            <main style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px' }}>
 
-                {/* Profile card */}
-                <div className="card card-padded animate-fade-in" style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32, flexWrap: 'wrap' }}>
-                    {/* Avatar */}
-                    <div style={{ width: 72, height: 72, borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem', fontWeight: 700, color: '#fff', flexShrink: 0, boxShadow: '0 4px 14px rgba(0,0,0,0.12)' }}>
-                        {avatarInitials}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <h2 style={{ marginBottom: 4 }}>{user?.name || 'Guest'}</h2>
-                        <p style={{ margin: 0, fontSize: '0.9375rem' }}>{user?.email}</p>
-                        <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <span className="badge badge-blue">✦ Member</span>
-                            <span className="badge badge-green">● Active</span>
+                {/* Welcome header */}
+                <div className="animate-fade-in" style={{ marginBottom: 40 }}>
+                    <h1 style={{ marginBottom: 6 }}>{greeting()}, {user?.name?.split(' ')[0] || 'there'} 👋</h1>
+                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '1rem', margin: 0 }}>What would you like to do today?</p>
+                </div>
+
+                {/* Main actions */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20, marginBottom: 40 }}>
+                    <button
+                        className="card card-padded card-hover animate-fade-in"
+                        onClick={() => navigate('/create')}
+                        style={{ textAlign: 'left', border: '2px solid var(--color-accent)', background: 'var(--color-accent-soft)', cursor: 'pointer', padding: 28 }}
+                    >
+                        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', marginBottom: 16 }}>
+                            <IconRocket size={26} />
                         </div>
-                    </div>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setShowLogoutModal(true)} style={{ flexShrink: 0 }}>
-                        Sign Out
+                        <h3 style={{ marginBottom: 8, color: 'var(--color-accent)' }}>Create a Room</h3>
+                        <p style={{ fontSize: '0.9rem', margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>Start a new collaboration session and invite your team to join.</p>
+                    </button>
+
+                    <button
+                        className="card card-padded card-hover animate-fade-in stagger-1"
+                        onClick={() => navigate('/join')}
+                        style={{ textAlign: 'left', cursor: 'pointer', padding: 28 }}
+                    >
+                        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(26,26,46,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1a1a2e', marginBottom: 16 }}>
+                            <IconLink size={26} />
+                        </div>
+                        <h3 style={{ marginBottom: 8 }}>Join a Room</h3>
+                        <p style={{ fontSize: '0.9rem', margin: 0, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>Enter a room code to join an existing collaboration session.</p>
                     </button>
                 </div>
 
-                {/* Quick actions */}
-                <div style={{ marginBottom: 32 }}>
-                    <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-accent)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
-                        Quick actions
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-
-                        {/* Create room */}
-                        <button
-                            className="card card-padded card-hover"
-                            onClick={() => navigate('/create')}
-                            style={{ textAlign: 'left', border: '2px solid var(--color-accent)', background: 'var(--color-accent-soft)', cursor: 'pointer' }}
-                        >
-                            <div style={{ fontSize: '2rem', marginBottom: 12 }}>🚀</div>
-                            <h4 style={{ marginBottom: 6, color: 'var(--color-accent)' }}>Create a Room</h4>
-                            <p style={{ fontSize: '0.875rem', margin: 0 }}>Start a new collaboration session and invite your team.</p>
-                        </button>
-
-                        {/* Join room */}
-                        <button
-                            className="card card-padded card-hover"
-                            onClick={() => navigate('/join')}
-                            style={{ textAlign: 'left', cursor: 'pointer' }}
-                        >
-                            <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔗</div>
-                            <h4 style={{ marginBottom: 6 }}>Join a Room</h4>
-                            <p style={{ fontSize: '0.875rem', margin: 0 }}>Enter a room ID to join an existing session.</p>
-                        </button>
-
-                        {/* Back to home */}
-                        <button
-                            className="card card-padded card-hover"
-                            onClick={() => navigate('/')}
-                            style={{ textAlign: 'left', cursor: 'pointer' }}
-                        >
-                            <div style={{ fontSize: '2rem', marginBottom: 12 }}>🏠</div>
-                            <h4 style={{ marginBottom: 6 }}>Home</h4>
-                            <p style={{ fontSize: '0.875rem', margin: 0 }}>Return to the landing page.</p>
-                        </button>
-                    </div>
-                </div>
-
-                {/* Account info */}
-                <div className="card card-padded animate-fade-in stagger-2">
-                    <h4 style={{ marginBottom: 20 }}>Account Details</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                        {[
-                            { label: 'Full Name', value: user?.name },
-                            { label: 'Email Address', value: user?.email },
-                            { label: 'Account ID', value: user?._id ? `${user._id.toString().slice(0, 8)}...` : '—' },
-                        ].map((row, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: i < 2 ? '1px solid var(--color-border-light)' : 'none' }}>
-                                <span style={{ fontSize: '0.875rem', color: 'var(--color-muted)', fontWeight: 500 }}>{row.label}</span>
-                                <span style={{ fontSize: '0.9375rem', color: 'var(--color-text)', fontWeight: 500 }}>{row.value || '—'}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </main>
 
             {/* Logout confirm modal */}
@@ -125,7 +99,7 @@ export default function DashboardPage() {
                     <div className="modal-box" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
                             <h3>Sign Out</h3>
-                            <button className="btn-icon" onClick={() => setShowLogoutModal(false)}>✕</button>
+                            <button className="btn-icon" onClick={() => setShowLogoutModal(false)} type="button" aria-label="Close"><IconClose size={18} /></button>
                         </div>
                         <div className="modal-body">
                             <p>Are you sure you want to sign out of NexusBoard?</p>

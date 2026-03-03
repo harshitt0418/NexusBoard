@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
+import { IconLogo } from '../components/ui/Icons';
 
 export default function AuthPage() {
     const navigate = useNavigate();
@@ -36,10 +37,10 @@ export default function AuthPage() {
         try {
             if (tab === 'login') {
                 await login(form.email, form.password);
-                toast('Welcome back! 👋', 'success');
+                toast('Welcome back!', 'success');
             } else {
                 await register(form.name, form.email, form.password);
-                toast('Account created! 🎉', 'success');
+                toast('Account created!', 'success');
             }
             navigate(from, { replace: true });
         } catch (err) {
@@ -50,12 +51,12 @@ export default function AuthPage() {
     };
 
     return (
-        <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', padding: 24 }}>
+        <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f5f0', padding: 24 }}>
             <div style={{ width: '100%', maxWidth: 420 }}>
                 {/* Logo */}
                 <div style={{ textAlign: 'center', marginBottom: 32 }} className="animate-fade-in">
-                    <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                        <span style={{ color: '#fff', fontSize: '1.5rem' }}>⬡</span>
+                    <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--color-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', color: '#fff' }}>
+                        <IconLogo size={28} />
                     </div>
                     <h2 style={{ marginBottom: 4 }}>NexusBoard</h2>
                     <p style={{ fontSize: '0.9rem', margin: 0 }}>Your real-time collaboration workspace</p>

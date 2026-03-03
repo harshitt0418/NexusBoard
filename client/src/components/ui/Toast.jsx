@@ -1,7 +1,10 @@
 import { useState, useCallback, createContext, useContext } from 'react';
+import { IconCheck, IconClose, IconInfo, IconWarning } from './Icons';
 
 const ToastContext = createContext(null);
 let toastId = 0;
+
+const TOAST_ICONS = { success: IconCheck, error: IconClose, info: IconInfo, warning: IconWarning };
 
 export const ToastProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
@@ -12,18 +15,19 @@ export const ToastProvider = ({ children }) => {
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), duration);
     }, []);
 
-    const icons = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
-
     return (
         <ToastContext.Provider value={toast}>
             {children}
             <div className="toast-container">
-                {toasts.map(t => (
-                    <div key={t.id} className={`toast toast-${t.type}`}>
-                        <span style={{ fontSize: '1rem', flexShrink: 0 }}>{icons[t.type]}</span>
-                        <span className="toast-msg">{t.message}</span>
-                    </div>
-                ))}
+                {toasts.map(t => {
+                    const Icon = TOAST_ICONS[t.type];
+                    return (
+                        <div key={t.id} className={`toast toast-${t.type}`}>
+                            {Icon && <span style={{ flexShrink: 0, display: 'inline-flex' }}><Icon size={18} /></span>}
+                            <span className="toast-msg">{t.message}</span>
+                        </div>
+                    );
+                })}
             </div>
         </ToastContext.Provider>
     );

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 
 const RoomContext = createContext(null);
 
@@ -13,6 +13,10 @@ export const RoomProvider = ({ children }) => {
     const [myRole, setMyRole] = useState('viewer'); // 'host' | 'editor' | 'viewer'
     const [myUserId, setMyUserId] = useState(null);
     const [myName, setMyName] = useState('');
+    
+    // Use ref to always have current myUserId for role updates
+    const myUserIdRef = useRef(null);
+    useEffect(() => { myUserIdRef.current = myUserId; }, [myUserId]);
 
     const initRoom = useCallback((state, userId, userName) => {
         setRoom(state);
@@ -24,8 +28,9 @@ export const RoomProvider = ({ children }) => {
         setStrokes(state.strokes || []);
         setMyUserId(userId);
         setMyName(userName);
-        const isHost = state.hostId === userId;
-        const isEditor = (state.activeEditors || []).includes(userId);
+        const uid = String(userId ?? '');
+        const isHost = state.hostId != null && String(state.hostId) === uid;
+        const isEditor = (state.activeEditors || []).some((id) => String(id) === uid);
         setMyRole(isHost ? 'host' : isEditor ? 'editor' : 'viewer');
     }, []);
 
@@ -34,9 +39,10 @@ export const RoomProvider = ({ children }) => {
         if (requests !== undefined) setPendingRequests(requests);
         setMyRole(prev => {
             if (prev === 'host') return 'host';
-            return editors.includes(myUserId) ? 'editor' : 'viewer';
+            const uid = String(myUserIdRef.current ?? '');
+            return (editors || []).some((id) => String(id) === uid) ? 'editor' : 'viewer';
         });
-    }, [myUserId]);
+    }, []); // No dependencies - always use ref for current userId
 
     const clearRoom = useCallback(() => {
         setRoom(null); setHostId(null); setBoardLocked(false);

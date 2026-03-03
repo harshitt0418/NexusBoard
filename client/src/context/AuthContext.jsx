@@ -8,45 +8,93 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('nb_token');
-        if (token) {
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            api.get('/auth/me')
-                .then(({ data }) => setUser(data.user))
-                .catch(() => {
-                    localStorage.removeItem('nb_token');
-                    delete api.defaults.headers.common['Authorization'];
-                })
-                .finally(() => setLoading(false));
-        } else {
-            setLoading(false);
-        }
+        // Check if user authenticated via cookie (new auth system)
+        api.get('/auth/me')
+            .then(({ data }) => setUser(data.user))
+            .catch(() => {
+                // Fallback to localStorage token (old auth system)
+                const token = localStorage.getItem('nb_token');
+                if (token) {
+                    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                    api.get('/auth/me')
+                        .then(({ data }) => setUser(data.user))
+                        .catch(() => {
+                            localStorage.removeItem('nb_token');
+                            delete api.defaults.headers.common['Authorization'];
+                        });
+                }
+            })
+            .finally(() => setLoading(false));
     }, []);
 
+    // New OTP-based authentication methods
+    const sendOTP = useCallback(async ({ email }) => {
+        const { data } = await api.post('/auth/send-otp', { email });
+        return data;
+    }, []);
+
+    const verifyOTP = useCallback(async ({ email, otp, name, password }) => {
+        const { data } = await api.post('/auth/verify-otp', { email, otp, name, password }, { withCredentials: true });
+        setUser(data.user);
+        return data;
+    }, []);
+
+    const forgotPassword = useCallback(async ({ email }) => {
+        const { data } = await api.post('/auth/forgot-password', { email });
+        return data;
+    }, []);
+
+    const resetPassword = useCallback(async ({ token, newPassword }) => {
+        const { data } = await api.post('/auth/reset-password', { token, newPassword });
+        return data;
+    }, []);
+
+    // Old authentication methods (backward compatibility)
     const login = useCallback(async (email, password) => {
-        const { data } = await api.post('/auth/login', { email, password });
-        localStorage.setItem('nb_token', data.token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        const { data } = await api.post('/auth/login', { email, password }, { withCredentials: true });
+        // Try cookie-based auth first, fallback to token
+        if (data.token) {
+            localStorage.setItem('nb_token', data.token);
+            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        }
         setUser(data.user);
         return data;
     }, []);
 
     const register = useCallback(async (name, email, password) => {
-        const { data } = await api.post('/auth/register', { name, email, password });
-        localStorage.setItem('nb_token', data.token);
-        api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        const { data } = await api.post('/auth/register', { name, email, password }, { withCredentials: true });
+        if (data.token) {
+            localStorage.setItem('nb_token', data.token);
+            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
+        }
         setUser(data.user);
         return data;
     }, []);
 
-    const logout = useCallback(() => {
+    const logout = useCallback(async () => {
+        try {
+            await api.post('/auth/logout', {}, { withCredentials: true });
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
         localStorage.removeItem('nb_token');
         delete api.defaults.headers.common['Authorization'];
         setUser(null);
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ 
+            user, 
+            loading, 
+            login, 
+            register, 
+            logout, 
+            sendOTP, 
+            verifyOTP, 
+            forgotPassword, 
+            resetPassword,
+            isAuthenticated: !!user 
+        }}>
             {children}
         </AuthContext.Provider>
     );

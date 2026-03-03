@@ -1,19 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { renderCanvas, destroyCanvas } from '../components/ui/canvas';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/ui/Toast';
 import { createRoom } from '../services/roomService';
 import { v4 as uuidv4 } from 'uuid';
 import { QRCodeSVG } from 'qrcode.react';
+import { IconCheck, IconCopy, IconArrowLeft, IconArrowRight } from '../components/ui/Icons';
+import '../styles/lobby.css';
 
 const Toggle = ({ value, onChange, label, hint }) => (
-    <div className="toggle-wrapper" style={{ borderBottom: '1px solid var(--color-border-light)', paddingBottom: 14 }}>
+    <div className="lobby-toggle-row">
         <div>
-            <div style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--color-text)' }}>{label}</div>
-            {hint && <div style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginTop: 2 }}>{hint}</div>}
+            <div className="lobby-toggle-label-text">{label}</div>
+            {hint && <div className="lobby-toggle-hint-text">{hint}</div>}
         </div>
-        <div className={`toggle-track ${value ? 'on' : ''}`} onClick={() => onChange(!value)}>
-            <div className="toggle-thumb" />
+        <div className={`lobby-toggle-track${value ? ' on' : ''}`} onClick={() => onChange(!value)}>
+            <div className="lobby-toggle-thumb" />
         </div>
     </div>
 );
@@ -30,6 +33,8 @@ export default function CreateRoomPage() {
     const [copied, setCopied] = useState(false);
 
     const update = (field, val) => setForm(prev => ({ ...prev, [field]: val }));
+
+    useEffect(() => { renderCanvas(); return () => destroyCanvas(); }, []);
 
     const submit = async (e) => {
         e.preventDefault();
@@ -76,37 +81,56 @@ export default function CreateRoomPage() {
     if (created) {
         const joinUrl = `${window.location.origin}/join?id=${created.roomId}`;
         return (
-            <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', padding: 24 }}>
-                <div style={{ width: '100%', maxWidth: 460 }} className="animate-scale-in">
-                    <div className="card card-padded">
-                        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                            <div style={{ width: 56, height: 56, borderRadius: 'var(--radius-lg)', background: 'var(--color-success-soft)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: '1.75rem' }}>✓</div>
-                            <h3>Room Created!</h3>
-                            <p style={{ margin: '6px 0 0', fontSize: '0.9rem' }}>{created.name}</p>
-                        </div>
-
-                        {/* Room ID */}
-                        <div style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: 20 }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Room ID</div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                                <span style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.12em', color: 'var(--color-text)' }}>{created.roomId}</span>
-                                <button className="btn btn-secondary btn-sm" onClick={copyRoomId}>
-                                    {copied ? '✓ Copied' : 'Copy'}
-                                </button>
+            <div className="lobby-wrap">
+                <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
+                <div className="lobby-card animate-scale-in">
+                    {/* ── Left hero ── */}
+                    <div className="lobby-left">
+                        <div className="lobby-left-top">
+                            <div className="lobby-eyebrow">
+                                <span className="lobby-eyebrow-dot" />
+                                Room Ready
+                            </div>
+                            <div>
+                                <h2 className="lobby-title">Your room<br />is live</h2>
+                                <p className="lobby-desc" style={{ marginTop: 14 }}>
+                                    Share the Room ID or QR code with your team to get everyone in.
+                                </p>
+                            </div>
+                            <div className="lobby-room-id-box">
+                                <div className="lobby-room-id-label">Room ID</div>
+                                <div className="lobby-room-id-value">{created.roomId}</div>
                             </div>
                         </div>
+                        <div className="lobby-left-bottom">
+                            <button className="lobby-back-btn" onClick={() => setCreated(null)}>
+                                <IconArrowLeft size={15} /> Create another room
+                            </button>
+                        </div>
+                    </div>
 
-                        {/* QR Code */}
-                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-                            <div style={{ padding: 16, background: '#fff', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-                                <QRCodeSVG value={joinUrl} size={140} level="M" />
-                            </div>
+                    {/* ── Right panel ── */}
+                    <div className="lobby-right">
+                        <div className="lobby-success-icon">
+                            <IconCheck size={26} />
+                        </div>
+                        <div className="lobby-right-title">{created.name}</div>
+                        <p className="lobby-right-sub">Invite via Room ID or share the QR code below</p>
+
+                        <div className="lobby-copy-row">
+                            <span className="lobby-copy-id">{created.roomId}</span>
+                            <button className="lobby-copy-btn" onClick={copyRoomId}>
+                                {copied ? <><IconCheck size={13} /> Copied</> : <><IconCopy size={13} /> Copy</>}
+                            </button>
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            <button className="btn btn-primary" onClick={goToLobby}>Enter Lobby →</button>
-                            <button className="btn btn-secondary" onClick={() => setCreated(null)}>Create Another</button>
+                        <div className="lobby-qr-wrap">
+                            <QRCodeSVG value={joinUrl} size={130} level="M" />
                         </div>
+
+                        <button className="lobby-btn" onClick={goToLobby}>
+                            <IconArrowRight size={17} /> Enter Lobby
+                        </button>
                     </div>
                 </div>
             </div>
@@ -114,41 +138,80 @@ export default function CreateRoomPage() {
     }
 
     return (
-        <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #F0F7FF 0%, #F8FAFC 100%)', padding: 24 }}>
-            <div style={{ width: '100%', maxWidth: 460 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)} style={{ marginBottom: 24 }}>← Back</button>
-
-                <div className="card animate-fade-in">
-                    <div style={{ padding: '24px 28px 16px', borderBottom: '1px solid var(--color-border-light)' }}>
-                        <h3>Create a Room</h3>
-                        <p style={{ fontSize: '0.875rem', margin: '4px 0 0' }}>Set up your collaboration space</p>
+        <div className="lobby-wrap">
+            <canvas id="doodle-canvas" style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', pointerEvents: 'none', zIndex: 0, willChange: 'transform' }} />
+            <div className="lobby-card animate-fade-in">
+                {/* ── Left dark hero ── */}
+                <div className="lobby-left">
+                    <div className="lobby-left-top">
+                        <div className="lobby-eyebrow">
+                            <span className="lobby-eyebrow-dot" />
+                            New Session
+                        </div>
+                        <div>
+                            <h2 className="lobby-title">Create a<br />room</h2>
+                            <p className="lobby-desc" style={{ marginTop: 14 }}>
+                                Set up your collaboration space, configure permissions, and invite your team in seconds.
+                            </p>
+                        </div>
                     </div>
+                    <div className="lobby-left-bottom">
+                        <button className="lobby-back-btn" onClick={() => navigate(-1)}>
+                            <IconArrowLeft size={15} /> Back
+                        </button>
+                    </div>
+                </div>
 
-                    <form onSubmit={submit} style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* ── Right form ── */}
+                <div className="lobby-right">
+                    <div className="lobby-right-title">Room details</div>
+                    <p className="lobby-right-sub">Fill in the details to generate your room</p>
+
+                    <form onSubmit={submit}>
                         {!user && (
-                            <div className="form-group">
-                                <label className="form-label">Your Display Name</label>
-                                <input className="input" placeholder="Enter your name" value={guestName} onChange={e => setGuestName(e.target.value)} />
+                            <div className="lobby-field">
+                                <label className="lobby-label">Your Display Name</label>
+                                <input
+                                    className="lobby-input"
+                                    placeholder="Enter your name"
+                                    value={guestName}
+                                    onChange={e => setGuestName(e.target.value)}
+                                />
                             </div>
                         )}
 
-                        <div className="form-group">
-                            <label className="form-label">Room Name</label>
-                            <input className="input" placeholder="Design Review, Sprint Planning…" value={form.name} onChange={e => update('name', e.target.value)} />
+                        <div className="lobby-field">
+                            <label className="lobby-label">Room Name</label>
+                            <input
+                                className="lobby-input"
+                                placeholder="Design Review, Sprint Planning…"
+                                value={form.name}
+                                onChange={e => update('name', e.target.value)}
+                            />
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Max Participants</label>
-                            <input className="input" type="number" min={2} max={50} value={form.maxParticipants} onChange={e => update('maxParticipants', Number(e.target.value))} />
+                        <div className="lobby-field">
+                            <label className="lobby-label">Max Participants</label>
+                            <input
+                                className="lobby-input"
+                                type="number"
+                                min={2}
+                                max={50}
+                                value={form.maxParticipants}
+                                onChange={e => update('maxParticipants', Number(e.target.value))}
+                            />
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0 16px', overflow: 'hidden' }}>
+                        <div className="lobby-toggles">
                             <Toggle value={form.isPrivate} onChange={v => update('isPrivate', v)} label="Private Room" hint="Only people with the Room ID can join" />
                             <Toggle value={form.autoApproveDrawing} onChange={v => update('autoApproveDrawing', v)} label="Auto-approve Drawing" hint="All participants can draw without approval" />
                         </div>
 
-                        <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: 4 }}>
-                            {loading ? <span className="spinner" style={{ width: 18, height: 18 }} /> : 'Generate Room → '}
+                        <button type="submit" className="lobby-btn" disabled={loading}>
+                            {loading
+                                ? <span className="spinner" style={{ width: 18, height: 18, borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#fff' }} />
+                                : <><IconArrowRight size={17} /> Generate Room</>
+                            }
                         </button>
                     </form>
                 </div>

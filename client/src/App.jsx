@@ -5,8 +5,13 @@ import { SocketProvider } from './context/SocketContext';
 import { RoomProvider } from './context/RoomContext';
 import { ToastProvider } from './components/ui/Toast';
 import ErrorBoundary from './components/ui/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
-import AuthPage from './pages/AuthPage';
+import NewLoginPage from './pages/NewLoginPage';
+import RegisterPage from './pages/RegisterPage';
+import VerifyOTPPage from './pages/VerifyOTPPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import CreateRoomPage from './pages/CreateRoomPage';
 import JoinRoomPage from './pages/JoinRoomPage';
@@ -59,12 +64,17 @@ export default function App() {
               <ToastProvider>
                 <Routes>
                   <Route path="/" element={<LandingPage />} />
-                  <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/create" element={<CreateRoomPage />} />
-                  <Route path="/join" element={<JoinRoomPage />} />
-                  <Route path="/room/:roomId/lobby" element={<LobbyPage />} />
-                  <Route path="/room/:roomId" element={<RoomPage />} />
+                  <Route path="/auth" element={<Navigate to="/login" replace />} />
+                  <Route path="/login" element={<NewLoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/verify-otp" element={<VerifyOTPPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+                  <Route path="/create" element={<ProtectedRoute><CreateRoomPage /></ProtectedRoute>} />
+                  <Route path="/join" element={<ProtectedRoute><JoinRoomPage /></ProtectedRoute>} />
+                  <Route path="/room/:roomId/lobby" element={<ProtectedRoute><LobbyPage /></ProtectedRoute>} />
+                  <Route path="/room/:roomId" element={<ProtectedRoute><RoomPage /></ProtectedRoute>} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </ToastProvider>

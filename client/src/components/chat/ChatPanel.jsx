@@ -1,13 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../../context/SocketContext';
 import { useRoom } from '../../context/RoomContext';
+import { IconClose, IconSend } from '../ui/Icons';
 
-export default function ChatPanel({ isOpen, onClose }) {
+export default function ChatPanel({ isOpen, onClose, messages = [] }) {
     const { socket } = useSocket();
-    const { myUserId, myName } = useRoom();
-    const [messages, setMessages] = useState([
-        { id: 0, type: 'system', message: 'Session started — welcome!' }
-    ]);
+    const { myUserId, myName, hostId } = useRoom();
     const [input, setInput] = useState('');
     const [typing, setTyping] = useState([]);
     const bottomRef = useRef(null);
@@ -15,31 +13,11 @@ export default function ChatPanel({ isOpen, onClose }) {
 
     useEffect(() => {
         if (!socket) return;
-        socket.on('chat_message', (msg) => {
-            setMessages(prev => [...prev, msg]);
-        });
         socket.on('user_typing', ({ userId, userName, typing: t }) => {
             setTyping(prev => t ? [...prev.filter(u => u.userId !== userId), { userId, userName }] : prev.filter(u => u.userId !== userId));
         });
-        socket.on('participant_joined', ({ userName }) => {
-            setMessages(prev => [...prev, { id: Date.now(), type: 'system', message: `${userName} joined` }]);
-        });
-        socket.on('participant_left', ({ userName }) => {
-            setMessages(prev => [...prev, { id: Date.now(), type: 'system', message: `${userName} left` }]);
-        });
-        socket.on('draw_access_approved', ({ userId }) => {
-            if (userId === myUserId) {
-                setMessages(prev => [...prev, { id: Date.now(), type: 'system', message: '✏︎ You have been granted drawing access' }]);
-            }
-        });
-        return () => {
-            socket.off('chat_message');
-            socket.off('user_typing');
-            socket.off('participant_joined');
-            socket.off('participant_left');
-            socket.off('draw_access_approved');
-        };
-    }, [socket, myUserId]);
+        return () => { socket.off('user_typing'); };
+    }, [socket]);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -72,7 +50,7 @@ export default function ChatPanel({ isOpen, onClose }) {
             {/* Header */}
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>Chat</div>
-                <button className="btn-icon" onClick={onClose} style={{ fontSize: '1rem' }}>✕</button>
+                <button className="btn-icon" onClick={onClose} type="button" aria-label="Close"><IconClose size={18} /></button>
             </div>
 
             {/* Messages */}
@@ -86,9 +64,20 @@ export default function ChatPanel({ isOpen, onClose }) {
                         );
                     }
                     const isMine = msg.userId === myUserId;
+                    const isHostMsg = msg.userId === hostId;
                     return (
                         <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', gap: 2 }}>
-                            {!isMine && <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingLeft: 2 }}>{msg.userName}</span>}
+                            {!isMine && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)', paddingLeft: 2, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    {msg.userName}
+                                    {isHostMsg && <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>Host</span>}
+                                </span>
+                            )}
+                            {isMine && isHostMsg && (
+                                <span style={{ fontSize: '0.75rem', alignSelf: 'flex-end', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                    <span className="badge badge-blue" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>Host</span>
+                                </span>
+                            )}
                             <div style={{
                                 maxWidth: '80%', padding: '8px 12px', borderRadius: isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                                 background: isMine ? 'var(--color-accent)' : 'var(--color-surface-2)',
@@ -125,7 +114,7 @@ export default function ChatPanel({ isOpen, onClose }) {
                     onChange={handleInput}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
                 />
-                <button className="btn btn-primary btn-sm" onClick={send} disabled={!input.trim()}>↑</button>
+                <button className="btn btn-primary btn-sm" onClick={send} disabled={!input.trim()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><IconSend size={18} /></button>
             </div>
         </div>
     );

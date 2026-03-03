@@ -1,6 +1,9 @@
 // Fix: Windows default DNS blocks MongoDB Atlas SRV lookups — use Google DNS instead
 require('dns').setServers(['8.8.8.8', '8.8.4.4']);
 
+// Load environment variables FIRST before any other modules that need them
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -8,7 +11,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
-require('dotenv').config();
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const rateLimit = require('express-rate-limit');
+const passport = require('./src/config/passport');
 
 const authRoutes = require('./src/routes/auth');
 const roomRoutes = require('./src/routes/rooms');
@@ -55,9 +61,36 @@ app.use(cors({
 }));
 app.use(morgan('dev'));
 app.use(express.json());
+app.use(cookieParser());
+
+// Session for passport
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || 'nexusboard-session-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+  })
+);
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Rate limiting for auth routes (more lenient in development)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 10 : 100, // 100 in dev, 10 in production
+  message: 'Too many authentication attempts. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/rooms', roomRoutes);
 
 // Health check: /health and /api/health so localhost:5000/health returns 200
