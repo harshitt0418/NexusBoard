@@ -25,14 +25,18 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // Allow same origins as Express (localhost on any port) so socket.io works from 5173, 5174, etc.
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // server-to-server
+  if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
+  if (origin === 'http://localhost:5173') return true;
+  if (origin === 'http://localhost:5174') return true;
+  if (origin.startsWith('http://127.0.0.1:')) return true;
+  if (origin.startsWith('http://localhost:')) return true;
+  return false;
+};
+
 const allowedSocketOrigin = (origin, callback) => {
-  const ok = process.env.CLIENT_URL
-    || !origin
-    || origin === 'http://localhost:5173'
-    || origin === 'http://localhost:5174'
-    || origin.startsWith('http://127.0.0.1:')
-    || (origin.startsWith('http://localhost:') && /:\d+$/.test(origin));
-  callback(null, ok ? origin : false);
+  callback(null, isAllowedOrigin(origin) ? origin : false);
 };
 
 const io = new Server(httpServer, {
@@ -47,16 +51,10 @@ const io = new Server(httpServer, {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = process.env.CLIENT_URL
-      || !origin
-      || origin === 'http://localhost:5173'
-      || origin === 'http://localhost:5174'
-      || origin.startsWith('http://127.0.0.1:')
-      || (origin.startsWith('http://localhost:') && /:(\d+)$/.test(origin));
-    callback(null, allowed ? origin : false);
+    callback(null, isAllowedOrigin(origin) ? origin : false);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(morgan('dev'));
