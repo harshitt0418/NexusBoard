@@ -19,4 +19,17 @@ export default defineConfig({
   optimizeDeps: {
     include: ['pdfjs-dist'],
   },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-socket': ['socket.io-client'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-pdf': ['pdfjs-dist'],
+        },
+      },
+    },
+  },
 });
