@@ -9,10 +9,18 @@ export const SocketProvider = ({ children }) => {
     const [connected, setConnected] = useState(false);
 
     useEffect(() => {
-        const s = io(SOCKET_URL, { autoConnect: true, reconnectionAttempts: 5 });
+        const s = io(SOCKET_URL, {
+            autoConnect: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 8000,
+            timeout: 20000,
+            transports: ['websocket', 'polling'],
+        });
         setSocket(s);
         s.on('connect', () => setConnected(true));
         s.on('disconnect', () => setConnected(false));
+        s.on('connect_error', () => setConnected(false));
         return () => { s.disconnect(); };
     }, []);
 

@@ -26,7 +26,7 @@ export default function LobbyPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { roomId } = useParams();
-    const { socket } = useSocket();
+    const { socket, connected } = useSocket();
     const { initRoom, participants, setParticipants, clearRoom } = useRoom();
     const toast = useToast();
     const joinedRef = useRef(false);
@@ -166,9 +166,24 @@ export default function LobbyPage() {
                     <div className="lobby-centered-spinner" style={{ animation: 'spin 2.5s linear infinite' }}>
                         <IconLoader size={26} />
                     </div>
-                    <div className="lobby-centered-title">Connecting to room…</div>
-                    <p className="lobby-centered-desc">Checking if the host is in the lobby…</p>
+                    <div className="lobby-centered-title">
+                        {connected ? 'Joining room…' : 'Connecting to server…'}
+                    </div>
+                    <p className="lobby-centered-desc">
+                        {connected
+                            ? 'Checking if the host is in the lobby…'
+                            : 'Waiting for the server to respond. If the server is on a free plan it may take up to 60 seconds to wake up.'}
+                    </p>
                     <div className="lobby-room-badge">{roomId}</div>
+                    {!connected && (
+                        <button
+                            className="lobby-btn-dark"
+                            style={{ marginTop: 14 }}
+                            onClick={() => socket?.connect()}
+                        >
+                            Retry Connection
+                        </button>
+                    )}
                 </div>
             </div>
         );
@@ -255,7 +270,7 @@ export default function LobbyPage() {
                     {isHost ? (
                         <div className="lobby-hint">
                             {joinStatus === 'pending'
-                                ? <><IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Connecting to room…</>
+                                ? <><IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />{connected ? 'Joining room…' : 'Connecting to server…'}</>
                                 : <><IconLightbulb size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Share the Room ID, then click <strong>Start Session</strong> when everyone's here.</>}
                         </div>
                     ) : (
