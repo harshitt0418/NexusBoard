@@ -415,7 +415,19 @@ export default function RoomPage() {
                 console.warn('getUserMedia failed:', err);
                 localStreamRef.current = null;
                 setLocalStream(null);
-                toast('Camera and microphone are needed. Please allow access and refresh.', 'error');
+                
+                // Specific error messages based on error type
+                let message = 'Camera and microphone access denied';
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    message = '⚠️ Camera/Mic blocked! Click the lock icon in the address bar → Allow Camera and Microphone → Refresh the page';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    message = 'No camera or microphone found. Please connect a device and refresh.';
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    message = 'Camera/mic is in use by another app. Close other apps and refresh.';
+                } else if (err.name === 'OverconstrainedError') {
+                    message = 'Camera/microphone settings not supported. Try a different device.';
+                }
+                toast(message, 'error');
             });
 
         return () => {
