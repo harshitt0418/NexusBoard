@@ -28,6 +28,8 @@ const httpServer = http.createServer(app);
 const isAllowedOrigin = (origin) => {
   if (!origin) return true; // server-to-server
   if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
+  // Allow Vercel preview deployments (*.vercel.app)
+  if (origin && origin.endsWith('.vercel.app')) return true;
   if (origin === 'http://localhost:5173') return true;
   if (origin === 'http://localhost:5174') return true;
   if (origin.startsWith('http://127.0.0.1:')) return true;
@@ -69,6 +71,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
   })
