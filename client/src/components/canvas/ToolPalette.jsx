@@ -156,31 +156,9 @@ export default function ToolPalette({ tool, setTool, color, setColor, strokeWidt
                     <div style={{ width: 32, height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
                 </>
             )}
-            {/* Photos/PDF zoom and read-only PDF page for participants (when no Insert section) */}
+            {/* Read-only PDF page info for participants (zoom/move controls are host-only) */}
             {!isHost && (photosCount > 0 || pdfTotalPages >= 1) && (
                 <>
-                    {photosCount > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 2, flexShrink: 0 }}>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>Move: Select tool</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                                <button className="btn-icon" title="Zoom out (-)" onClick={onBgZoomOut}
-                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <IconMinus size={16} />
-                                </button>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-secondary)', minWidth: 48, textAlign: 'center' }}>
-                                    {Math.round((bgScale || 1) * 100)}%
-                                </span>
-                                <button className="btn-icon" title="Zoom in (+)" onClick={onBgZoomIn}
-                                    style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <IconPlus size={16} />
-                                </button>
-                            </div>
-                            <button className="btn-icon" title="Reset position/size" onClick={onBgReset}
-                                style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <IconSync size={16} />
-                            </button>
-                        </div>
-                    )}
                     {pdfTotalPages >= 1 && (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                             <div style={{ fontSize: '0.65rem', color: 'var(--color-muted)' }}>PDF page</div>

@@ -30,7 +30,7 @@ function getErasedStrokeIds(rawEraserPoints, allStrokes, strokeWidth, cw, ch, us
         .map(s => s.id);
 }
 
-export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, photos = [], photosTransform, onPhotosTransformChange }) {
+export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, photos = [], photosTransform, onPhotosTransformChange, canMovePdf = false }) {
     const containerRef = useRef(null);
     const photosLayerRef = useRef(null);  // back canvas: white + photos (eraser does NOT touch this)
     const photosCtxRef = useRef(null);
@@ -310,6 +310,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
     const handleDown = (e) => {
         e.preventDefault();
         if (tool === 'select' && photos?.length > 0) {
+            if (!canMovePdf) return; // only host can move PDFs/screenshots
             isPanningBg.current = true;
             setIsPanning(true);
             const pos = getPos(e);

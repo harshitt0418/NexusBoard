@@ -892,9 +892,9 @@ export default function RoomPage() {
                 onPrevPdfPage={myRole === 'host' ? handlePrevPdfPage : undefined}
                 onNextPdfPage={myRole === 'host' ? handleNextPdfPage : undefined}
                 bgScale={photosTransform?.scale || 1}
-                onBgZoomIn={handlePhotosZoomIn}
-                onBgZoomOut={handlePhotosZoomOut}
-                onBgReset={handlePhotosReset}
+                onBgZoomIn={myRole === 'host' ? handlePhotosZoomIn : undefined}
+                onBgZoomOut={myRole === 'host' ? handlePhotosZoomOut : undefined}
+                onBgReset={myRole === 'host' ? handlePhotosReset : undefined}
             />
 
             {/* ── CANVAS ────────────────────────────────────────────────────────── */}
@@ -905,6 +905,7 @@ export default function RoomPage() {
                     photos={photos}
                     photosTransform={photosTransform}
                     onPhotosTransformChange={setPhotosTransform}
+                    canMovePdf={myRole === 'host'}
                 />
             </div>
 

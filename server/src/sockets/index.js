@@ -192,12 +192,13 @@ const initSockets = (io) => {
             });
         });
 
-        // ─── BOARD PHOTOS TRANSFORM (zoom/pan; anyone can change for their view, synced to all) ────────────
+        // ─── BOARD PHOTOS TRANSFORM (zoom/pan; host only can change, synced to all) ────────────
         socket.on('board_photos_transform', (data) => {
             const { roomId, userId } = socket.data;
             if (!roomId) return;
             const state = getRoomState(roomId);
-            // Allow anyone to change transform so all participants can zoom/pan PDFs
+            // Only the host can move or zoom the board background
+            if (!isHostSocket(state, userId)) return;
             if (data?.transform) {
                 state.photosTransform = {
                     offsetX: typeof data.transform.offsetX === 'number' ? data.transform.offsetX : 0,
