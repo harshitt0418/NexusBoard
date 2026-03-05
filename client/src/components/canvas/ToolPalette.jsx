@@ -3,7 +3,7 @@ import { IconPen, IconEraser, IconSelect, IconUndo, IconTrash, IconPdf, IconImag
 const TOOLS = [
     { id: 'pen',    Icon: IconPen,    label: 'Draw',   tooltip: 'Draw on board',          ariaLabel: 'Draw on board' },
     { id: 'eraser', Icon: IconEraser, label: 'Erase',  tooltip: 'Erase drawings',         ariaLabel: 'Erase drawings' },
-    { id: 'select', Icon: IconSelect, label: 'Move',   tooltip: 'Move PDF / Screenshot',  ariaLabel: 'Move PDF or screenshot' },
+    { id: 'select', Icon: IconSelect, label: 'Select',  tooltip: 'Select / Move',          ariaLabel: 'Select or move PDF / screenshot' },
 ];
 
 const COLORS = ['#0F172A', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#F97316', '#FFFFFF'];

@@ -136,8 +136,8 @@ export function IconCrown({ size, className, style }) {
 export function IconPen({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>
-            <path d="M12 19l7-7-3-3-7 7-4 1 1-4z" />
-            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
         </IconWrapper>
     );
 }
@@ -172,7 +172,8 @@ export function IconFocusExit({ size, className, style }) {
 export function IconEraser({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>
-            <path d="M20 20H7L3 16 13 6l4 4-6 10" />
+            <path d="M20 20H7L3 16l9-9 8 8-5 5z" />
+            <line x1="6" y1="14" x2="16" y2="4" />
         </IconWrapper>
     );
 }
@@ -180,8 +181,7 @@ export function IconEraser({ size, className, style }) {
 export function IconSelect({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>
-            <path d="M3 3l7 7m0 0l4-4m-4 4v10l4-4" />
-            <rect x="14" y="6" width="6" height="6" rx="1" />
+            <polygon points="3 3 21 12 13 13 12 21 3 3" />
         </IconWrapper>
     );
 }
@@ -198,9 +198,9 @@ export function IconTrash({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>
             <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3-3V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
         </IconWrapper>
     );
 }
@@ -419,9 +419,9 @@ export function IconImage({ size, className, style }) {
 export function IconImageOff({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>
-            <line x1="1" y1="1" x2="23" y2="23" />
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-            <path d="M21 3v4M3 3l4 4M16 16l4 4M21 7l-4 4" />
+            <rect x="3" y="4" width="18" height="14" rx="2" />
+            <line x1="8" y1="9" x2="16" y2="15" />
+            <line x1="16" y1="9" x2="8" y2="15" />
         </IconWrapper>
     );
 }
