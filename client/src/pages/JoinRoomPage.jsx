@@ -5,6 +5,7 @@ import { useToast } from '../components/ui/Toast';
 import { getRoom } from '../services/roomService';
 import { v4 as uuidv4 } from 'uuid';
 import { IconCheck, IconArrowLeft, IconArrowRight } from '../components/ui/Icons';
+import { saveRecentRoom } from '../utils/recentRooms';
 import '../styles/lobby.css';
 
 export default function JoinRoomPage() {
@@ -45,6 +46,7 @@ export default function JoinRoomPage() {
             localStorage.setItem('nb_user_id', userId);
             localStorage.setItem('nb_user_name', userName);
             const id = roomId.trim().toUpperCase();
+            saveRecentRoom({ roomId: id, name: roomPreview?.name || id, role: 'joined' });
             navigate(`/room/${id}/lobby`, {
                 state: { roomId: id, userId, userName, isHost: false }
             });

@@ -7,6 +7,7 @@ import { createRoom } from '../services/roomService';
 import { v4 as uuidv4 } from 'uuid';
 import { QRCodeSVG } from 'qrcode.react';
 import { IconCheck, IconCopy, IconArrowLeft, IconArrowRight } from '../components/ui/Icons';
+import { saveRecentRoom } from '../utils/recentRooms';
 import '../styles/lobby.css';
 
 const Toggle = ({ value, onChange, label, hint }) => (
@@ -73,6 +74,7 @@ export default function CreateRoomPage() {
         const userId = user?._id || created.guestId;
         const userName = user?.name || guestName;
         sessionStorage.setItem(`nb_host_${roomId}`, userId);
+        saveRecentRoom({ roomId, name: created.name, role: 'host' });
         navigate(`/room/${roomId}/lobby`, {
             state: { roomId, userId, userName, isHost: true }
         });
