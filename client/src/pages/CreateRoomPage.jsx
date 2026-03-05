@@ -74,7 +74,7 @@ export default function CreateRoomPage() {
         const userId = user?._id || created.guestId;
         const userName = user?.name || guestName;
         sessionStorage.setItem(`nb_host_${roomId}`, userId);
-        saveRecentRoom({ roomId, name: created.name, role: 'host' });
+        saveRecentRoom({ roomId, name: created.name, role: 'host', isPrivate: created.isPrivate || false });
         navigate(`/room/${roomId}/lobby`, {
             state: { roomId, userId, userName, isHost: true }
         });

@@ -434,6 +434,16 @@
 .db-recent-badge.host   { background: rgba(232,100,122,0.12); color: var(--pink); }
 .db-recent-badge.joined { background: rgba(108,201,122,0.12); color: #4a9d57; }
 
+.db-recent-item--locked {
+  cursor: default;
+  opacity: 0.6;
+}
+.db-recent-item--locked:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
 /* Empty state */
 .db-empty {
   text-align: center;

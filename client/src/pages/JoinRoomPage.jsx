@@ -46,7 +46,7 @@ export default function JoinRoomPage() {
             localStorage.setItem('nb_user_id', userId);
             localStorage.setItem('nb_user_name', userName);
             const id = roomId.trim().toUpperCase();
-            saveRecentRoom({ roomId: id, name: roomPreview?.name || id, role: 'joined' });
+            saveRecentRoom({ roomId: id, name: roomPreview?.name || id, role: 'joined', isPrivate: roomPreview?.isPrivate || false });
             navigate(`/room/${id}/lobby`, {
                 state: { roomId: id, userId, userName, isHost: false }
             });

@@ -160,16 +160,22 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="db-recent-list" role="list">
-                        {recentRooms.map(room => (
+                        {recentRooms.map(room => {
+                            const isLocked = room.role === 'host' || room.isPrivate;
+                            const lockReason = room.role === 'host'
+                                ? 'Start this room from Create a Room'
+                                : 'Private — cannot rejoin directly';
+                            return (
                             <div
                                 key={room.roomId}
-                                className="db-recent-item"
+                                className={`db-recent-item${isLocked ? ' db-recent-item--locked' : ''}`}
                                 role="listitem"
-                                onClick={() => navigate(`/join?id=${room.roomId}`)}
-                                tabIndex={0}
-                                aria-label={`Rejoin ${room.name} (${room.roomId})`}
-                                onKeyDown={e => e.key === 'Enter' && navigate(`/join?id=${room.roomId}`)}
-                                title={`Rejoin ${room.name}`}
+                                onClick={!isLocked ? () => navigate(`/join?id=${room.roomId}`) : undefined}
+                                tabIndex={isLocked ? -1 : 0}
+                                aria-label={isLocked ? lockReason : `Rejoin ${room.name} (${room.roomId})`}
+                                aria-disabled={isLocked}
+                                onKeyDown={!isLocked ? (e => e.key === 'Enter' && navigate(`/join?id=${room.roomId}`)) : undefined}
+                                title={isLocked ? lockReason : `Rejoin ${room.name}`}
                             >
                                 <div className={`db-recent-dot ${room.role}`} aria-hidden="true" />
                                 <div className="db-recent-info">
@@ -177,10 +183,11 @@ export default function DashboardPage() {
                                     <div className="db-recent-meta">{room.roomId} · {formatTime(room.ts)}</div>
                                 </div>
                                 <span className={`db-recent-badge ${room.role}`}>
-                                    {room.role === 'host' ? 'Host' : 'Joined'}
+                                    {room.role === 'host' ? 'Host' : room.isPrivate ? '🔒 Private' : 'Joined'}
                                 </span>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
