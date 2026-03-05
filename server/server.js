@@ -90,6 +90,16 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Request timeout — prevents frontend from hanging indefinitely (Render free tier)
+app.use((req, res, next) => {
+  res.setTimeout(15000, () => {
+    if (!res.headersSent) {
+      res.status(503).json({ message: 'Request timed out. Please try again.' });
+    }
+  });
+  next();
+});
+
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/rooms', roomRoutes);

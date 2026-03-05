@@ -1,20 +1,10 @@
-const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 
-// Create Brevo SMTP transporter
-const createTransporter = () => {
-    return nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        secure: false,
-        auth: {
-            user: process.env.BREVO_SMTP_USER,
-            pass: process.env.BREVO_SMTP_KEY,
-        },
-    });
-};
+// Initialize Brevo transactional email API client
+const apiInstance = new Brevo.TransactionalEmailsApi();
 
 /**
- * Send email using Brevo SMTP
+ * Send email using Brevo HTTP API (faster and more reliable than SMTP in production)
  * @param {Object} options - Email options
  * @param {String} options.to - Recipient email
  * @param {String} options.subject - Email subject
@@ -23,32 +13,36 @@ const createTransporter = () => {
  */
 exports.sendEmail = async ({ to, subject, text, html }) => {
     try {
-        if (!process.env.BREVO_SMTP_USER || !process.env.BREVO_SMTP_KEY) {
-            console.error('❌ Email configuration missing: BREVO_SMTP_USER or BREVO_SMTP_KEY not set');
+        if (!process.env.BREVO_API_KEY) {
+            console.error('❌ Email configuration missing: BREVO_API_KEY not set');
             throw new Error('Email service not configured');
         }
 
-        const transporter = createTransporter();
-        const fromEmail = process.env.EMAIL_FROM || process.env.BREVO_SMTP_USER;
+        // Set API key on each call (safe for stateless/serverless environments)
+        apiInstance.setApiKey(
+            Brevo.TransactionalEmailsApiApiKeys.apiKey,
+            process.env.BREVO_API_KEY
+        );
 
-        const mailOptions = {
-            from: `"NexusBoard" <${fromEmail}>`,
-            to,
-            subject,
-            text,
-            html,
-        };
+        const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_FROM;
 
-        console.log(`📧 Sending email to ${to}...`);
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully:', info.messageId);
-        return info;
+        const sendSmtpEmail = new Brevo.SendSmtpEmail();
+        sendSmtpEmail.subject = subject;
+        sendSmtpEmail.htmlContent = html || `<p>${text}</p>`;
+        sendSmtpEmail.sender = { name: 'NexusBoard', email: senderEmail };
+        sendSmtpEmail.to = [{ email: to }];
+
+        console.log(`📧 Sending email to ${to} via Brevo API...`);
+        const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log('✅ Email sent successfully, messageId:', response.body?.messageId);
+        return response;
     } catch (error) {
-        console.error('❌ Email send failed:', error.message);
+        console.error('❌ Brevo email send failed:', error.message);
         console.error('   Email config:', {
-            user: process.env.BREVO_SMTP_USER ? 'SET' : 'NOT SET',
-            key: process.env.BREVO_SMTP_KEY ? 'SET' : 'NOT SET',
+            apiKey: process.env.BREVO_API_KEY ? 'SET' : 'NOT SET',
+            senderEmail: process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_FROM || 'NOT SET',
         });
         throw new Error('Failed to send email. Please try again later.');
     }
 };
+
