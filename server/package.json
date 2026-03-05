@@ -9,7 +9,6 @@
   },
   "type": "commonjs",
   "dependencies": {
-    "@getbrevo/brevo": "^4.0.1",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
