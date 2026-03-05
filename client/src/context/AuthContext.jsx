@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
     // New OTP-based authentication methods
     const sendOTP = useCallback(async ({ email }) => {
-        const { data } = await api.post('/auth/send-otp', { email });
+        const { data } = await api.post('/auth/send-otp', { email }, { timeout: 30000 });
         return data;
     }, []);
 

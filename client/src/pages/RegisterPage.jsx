@@ -31,11 +31,31 @@ export default function RegisterPage() {
 
         setLoading(true);
         try {
+            console.log('Sending OTP to:', email);
             await sendOTP({ email });
+            console.log('OTP sent successfully');
             toast('OTP sent to your email', 'success');
             navigate('/verify-otp', { state: { email, name, password } });
         } catch (err) {
-            toast(err.response?.data?.message || 'Registration failed', 'error');
+            console.error('Registration error:', err);
+            console.error('Error details:', {
+                status: err.response?.status,
+                message: err.response?.data?.message,
+                code: err.code
+            });
+            
+            let errorMessage = 'Registration failed';
+            if (err.code === 'ECONNABORTED') {
+                errorMessage = 'Request timed out. The server might be waking up (free hosting). Please try again in a minute.';
+            } else if (err.code === 'ERR_NETWORK') {
+                errorMessage = 'Cannot connect to server. Please check your connection.';
+            } else if (err.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            
+            toast(errorMessage, 'error');
         } finally {
             setLoading(false);
         }

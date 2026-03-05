@@ -115,19 +115,27 @@ exports.sendOTP = async (req, res) => {
     });
 
     // Send OTP via email
-    await sendEmail({
-        to: email,
-        subject: 'Your NexusBoard Login OTP',
-        html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #3B82F6;">NexusBoard Login</h2>
-                <p>Your one-time password (OTP) is:</p>
-                <h1 style="background: #F0F7FF; padding: 20px; text-align: center; letter-spacing: 8px; color: #0F172A;">${otp}</h1>
-                <p style="color: #64748B; font-size: 14px;">This code will expire in 5 minutes.</p>
-                <p style="color: #64748B; font-size: 14px;">If you didn't request this, please ignore this email.</p>
-            </div>
-        `,
-    });
+    try {
+        await sendEmail({
+            to: email,
+            subject: 'Your NexusBoard Login OTP',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <h2 style="color: #3B82F6;">NexusBoard Login</h2>
+                    <p>Your one-time password (OTP) is:</p>
+                    <h1 style="background: #F0F7FF; padding: 20px; text-align: center; letter-spacing: 8px; color: #0F172A;">${otp}</h1>
+                    <p style="color: #64748B; font-size: 14px;">This code will expire in 5 minutes.</p>
+                    <p style="color: #64748B; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+                </div>
+            `,
+        });
+        console.log(`✅ OTP sent to ${email}`);
+    } catch (emailError) {
+        console.error('❌ Failed to send OTP email:', emailError);
+        // Clean up the OTP record since email failed
+        await Otp.deleteMany({ email: email.toLowerCase() });
+        throw createError('Failed to send verification email. Please check email configuration.', 500);
+    }
 
     res.json({ message: 'OTP sent successfully to your email' });
 };

@@ -9,6 +9,9 @@ const createTransporter = () => {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_APP_PASSWORD, // Use App Password, not regular password
             },
+            connectionTimeout: 10000, // 10s to establish SMTP connection
+            greetingTimeout: 10000,   // 10s for SMTP greeting
+            socketTimeout: 15000,     // 15s for socket inactivity
         });
     }
 
@@ -21,6 +24,9 @@ const createTransporter = () => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_APP_PASSWORD,
         },
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
     });
 };
 
@@ -34,6 +40,12 @@ const createTransporter = () => {
  */
 exports.sendEmail = async ({ to, subject, text, html }) => {
     try {
+        // Validate email configuration
+        if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+            console.error('❌ Email configuration missing: EMAIL_USER or EMAIL_APP_PASSWORD not set');
+            throw new Error('Email service not configured');
+        }
+
         const transporter = createTransporter();
 
         const mailOptions = {
@@ -44,11 +56,17 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
             html,
         };
 
+        console.log(`📧 Sending email to ${to}...`);
         const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent:', info.messageId);
+        console.log('✅ Email sent successfully:', info.messageId);
         return info;
     } catch (error) {
         console.error('❌ Email send failed:', error.message);
+        console.error('   Email config:', { 
+            service: process.env.EMAIL_SERVICE || 'smtp',
+            user: process.env.EMAIL_USER ? 'SET' : 'NOT SET',
+            password: process.env.EMAIL_APP_PASSWORD ? 'SET' : 'NOT SET'
+        });
         throw new Error('Failed to send email. Please try again later.');
     }
 };
