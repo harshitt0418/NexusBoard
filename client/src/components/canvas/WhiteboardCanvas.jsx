@@ -354,26 +354,43 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         }
         if (!isDrawing.current || !lastPos.current) return;
         e.preventDefault();
-        const ctx = ctxRef.current;
-        drawPoint(ctx, pos.x, pos.y, lastPos.current.x, lastPos.current.y, color, strokeWidth, tool);
         currentStroke.current.push({ x: pos.x, y: pos.y });
-        if (now - lastEmit > THROTTLE_MS) {
-            const c = strokeCanvasRef.current;
-            if (c?.width && c?.height) {
-                const n = (x, y) => ({ x: x / c.width, y: y / c.height });
-                socket?.emit('board_draw', {
-                    type: 'move',
-                    x: pos.x / c.width,
-                    y: pos.y / c.height,
-                    lastPos: n(lastPos.current.x, lastPos.current.y),
-                    color,
-                    width: strokeWidth,
-                    tool,
-                });
+        if (tool === 'eraser') {
+            // Redraw-based preview: only hide owned strokes under the eraser.
+            // Never apply destination-out to the canvas during drag, which would
+            // temporarily erase other users' strokes.
+            const canvas = strokeCanvasRef.current;
+            if (canvas) {
+                const cw = canvas.width || 1;
+                const ch = canvas.height || 1;
+                const erasedIds = getErasedStrokeIds(
+                    currentStroke.current, strokesRef.current, strokeWidth, cw, ch, myUserId
+                );
+                const toHide = new Set(erasedIds);
+                redrawStrokesOnly(strokesRef.current.filter(s => !toHide.has(s.id)));
+            }
+            // Do NOT emit board_draw 'move' for eraser; erase_strokes is sent on mouseup.
+        } else {
+            const ctx = ctxRef.current;
+            drawPoint(ctx, pos.x, pos.y, lastPos.current.x, lastPos.current.y, color, strokeWidth, tool);
+            if (now - lastEmit > THROTTLE_MS) {
+                const c = strokeCanvasRef.current;
+                if (c?.width && c?.height) {
+                    const n = (x, y) => ({ x: x / c.width, y: y / c.height });
+                    socket?.emit('board_draw', {
+                        type: 'move',
+                        x: pos.x / c.width,
+                        y: pos.y / c.height,
+                        lastPos: n(lastPos.current.x, lastPos.current.y),
+                        color,
+                        width: strokeWidth,
+                        tool,
+                    });
+                }
             }
         }
         lastPos.current = pos;
-    }, [canDraw, color, strokeWidth, tool, socket, redrawPhotosLayer, onPhotosTransformChange]);
+    }, [canDraw, color, strokeWidth, tool, socket, redrawPhotosLayer, onPhotosTransformChange, redrawStrokesOnly, myUserId]);
 
     const handleUp = () => {
         if (isPanningBg.current) {
