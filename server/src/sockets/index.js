@@ -163,6 +163,18 @@ const initSockets = (io) => {
             socket.to(roomId).emit('board_undo', { userId, strokeId: data?.strokeId });
         });
 
+        // ─── ERASE STROKES (ownership-aware: user can only erase their own strokes) ──
+        socket.on('erase_strokes', ({ strokeIds }) => {
+            const { roomId, userId } = socket.data;
+            if (!roomId || !Array.isArray(strokeIds) || strokeIds.length === 0) return;
+            const state = getRoomState(roomId);
+            if (!state.activeEditors.includes(userId) && !isHostSocket(state, userId)) return;
+            // Server-side validation: only remove strokes owned by the requesting user
+            const toRemove = new Set(strokeIds);
+            state.strokes = state.strokes.filter(s => !(toRemove.has(s.id) && s.userId === userId));
+            socket.to(roomId).emit('erase_strokes', { strokeIds });
+        });
+
         // ─── BOARD PHOTOS / PDF (host only; synced to all participants) ─────────────
         socket.on('board_photos', (data) => {
             const { roomId, userId } = socket.data;

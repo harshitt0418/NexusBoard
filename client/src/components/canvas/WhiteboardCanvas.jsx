@@ -9,6 +9,27 @@ let lastEmit = 0;
 
 const defaultPhotosTransform = { offsetX: 0, offsetY: 0, scale: 1 };
 
+// Returns IDs of strokes owned by `userId` that the eraser path touched.
+// rawEraserPoints are in canvas-pixel space; stroke points are normalised (0-1).
+function getErasedStrokeIds(rawEraserPoints, allStrokes, strokeWidth, cw, ch, userId) {
+    if (!rawEraserPoints.length || !allStrokes.length) return [];
+    const eraserRadius = Math.max(strokeWidth * 3, 12) / 2;
+    const r2 = eraserRadius * eraserRadius;
+    return allStrokes
+        .filter(s => s.userId === userId && s.tool !== 'eraser')
+        .filter(s => {
+            for (const ep of rawEraserPoints) {
+                for (const sp of s.points) {
+                    const dx = ep.x - sp.x * cw;
+                    const dy = ep.y - sp.y * ch;
+                    if (dx * dx + dy * dy <= r2) return true;
+                }
+            }
+            return false;
+        })
+        .map(s => s.id);
+}
+
 export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, photos = [], photosTransform, onPhotosTransformChange }) {
     const containerRef = useRef(null);
     const photosLayerRef = useRef(null);  // back canvas: white + photos (eraser does NOT touch this)
@@ -229,6 +250,12 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             if (idx !== -1) strokesRef.current.splice(strokesRef.current.length - 1 - idx, 1);
             redrawAll();
         });
+        socket.on('erase_strokes', ({ strokeIds }) => {
+            if (!Array.isArray(strokeIds) || strokeIds.length === 0) return;
+            const toRemove = new Set(strokeIds);
+            strokesRef.current = strokesRef.current.filter(s => !toRemove.has(s.id));
+            redrawAll();
+        });
         socket.on('cursor_move', ({ userId: uid, userName: un, x, y }) => {
             setRemoteCursors(prev => ({ ...prev, [uid]: { name: un, x, y, ts: Date.now() } }));
         });
@@ -236,6 +263,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             socket.off('board_draw');
             socket.off('board_clear');
             socket.off('board_undo');
+            socket.off('erase_strokes');
             socket.off('cursor_move');
         };
     }, [socket, redrawAll]);
@@ -362,18 +390,33 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         const canvas = strokeCanvasRef.current;
         const cw = canvas?.width || 1;
         const ch = canvas?.height || 1;
-        const points = currentStroke.current.map((p) => ({ x: p.x / cw, y: p.y / ch }));
-        const stroke = {
-            id: `${myUserId}-${Date.now()}`,
-            userId: myUserId,
-            points,
-            color,
-            width: strokeWidth,
-            tool,
-        };
-        strokesRef.current.push(stroke);
-        redrawStrokesOnly();
-        socket?.emit('board_draw', { type: 'end', stroke });
+
+        if (tool === 'eraser') {
+            // Ownership-aware erase: only remove strokes the current user created
+            const erasedIds = getErasedStrokeIds(
+                currentStroke.current, strokesRef.current, strokeWidth, cw, ch, myUserId
+            );
+            if (erasedIds.length > 0) {
+                const toRemove = new Set(erasedIds);
+                strokesRef.current = strokesRef.current.filter(s => !toRemove.has(s.id));
+                socket?.emit('erase_strokes', { strokeIds: erasedIds });
+            }
+            // Always redraw to clear the temporary destination-out preview
+            redrawStrokesOnly();
+        } else {
+            const points = currentStroke.current.map((p) => ({ x: p.x / cw, y: p.y / ch }));
+            const stroke = {
+                id: `${myUserId}-${Date.now()}`,
+                userId: myUserId,
+                points,
+                color,
+                width: strokeWidth,
+                tool,
+            };
+            strokesRef.current.push(stroke);
+            redrawStrokesOnly();
+            socket?.emit('board_draw', { type: 'end', stroke });
+        }
         lastPos.current = null;
         currentStroke.current = [];
     };
