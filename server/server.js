@@ -82,10 +82,22 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Rate limiting for auth routes (more lenient in development)
+// Google OAuth routes are excluded — they use a separate, more lenient limiter below.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'production' ? 10 : 100, // 100 in dev, 10 in production
   message: 'Too many authentication attempts. Please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.originalUrl.includes('/api/auth/google'), // Google OAuth has its own limiter
+});
+
+// Google OAuth routes are browser redirects; give them their own generous limiter
+// so that normal login + callback cycles (2 requests each) never hit the tight limit above.
+const googleAuthLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: process.env.NODE_ENV === 'production' ? 30 : 200, // 30 logins / hour in production
+  message: 'Too many Google sign-in attempts. Please wait and try again.',
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -101,6 +113,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth/google', googleAuthLimiter); // applied before the general auth limiter
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/rooms', roomRoutes);
 
