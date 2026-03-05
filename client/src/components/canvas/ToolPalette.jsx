@@ -1,9 +1,9 @@
 import { IconPen, IconEraser, IconSelect, IconUndo, IconTrash, IconPdf, IconImage, IconImageOff, IconArrowLeft, IconArrowRight, IconPlus, IconMinus, IconSync } from '../ui/Icons';
 
 const TOOLS = [
-    { id: 'pen', Icon: IconPen, label: 'Pen' },
-    { id: 'eraser', Icon: IconEraser, label: 'Eraser' },
-    { id: 'select', Icon: IconSelect, label: 'Select' },
+    { id: 'pen',    Icon: IconPen,    label: 'Draw',   tooltip: 'Draw on board',          ariaLabel: 'Draw on board' },
+    { id: 'eraser', Icon: IconEraser, label: 'Erase',  tooltip: 'Erase drawings',         ariaLabel: 'Erase drawings' },
+    { id: 'select', Icon: IconSelect, label: 'Move',   tooltip: 'Move PDF / Screenshot',  ariaLabel: 'Move PDF or screenshot' },
 ];
 
 const COLORS = ['#0F172A', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#F97316', '#FFFFFF'];
@@ -29,17 +29,19 @@ export default function ToolPalette({ tool, setTool, color, setColor, strokeWidt
                 return (
                     <button key={t.id}
                         className={`btn-icon ${tool === t.id ? 'active' : ''}`}
-                        title={t.label}
+                        title={t.tooltip}
+                        aria-label={t.ariaLabel}
                         onClick={() => setTool(t.id)}
                         style={{
-                            width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+                            width: 44, height: 48, borderRadius: 'var(--radius-sm)',
                             background: tool === t.id ? 'var(--color-accent-soft)' : 'transparent',
                             color: tool === t.id ? 'var(--color-accent)' : 'var(--color-text-secondary)',
                             boxShadow: tool === t.id ? '0 0 0 2px var(--color-accent-ring)' : 'none',
                             transition: 'all var(--transition-fast)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2
                         }}>
                         <Icon size={20} />
+                        <span style={{ fontSize: '0.6rem', fontWeight: 500, letterSpacing: '0.01em', lineHeight: 1 }}>{t.label}</span>
                     </button>
                 );
             })}
@@ -98,7 +100,7 @@ export default function ToolPalette({ tool, setTool, color, setColor, strokeWidt
                         </button>
                     )}
                     {photosCount > 0 && onClearPhotos && (
-                        <button className="btn-icon" title="Remove all photos" onClick={onClearPhotos}
+                        <button className="btn-icon" title="Remove all photos / screenshots from board" aria-label="Remove all photos from board" onClick={onClearPhotos}
                             style={{ width: 40, height: 40, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <IconImageOff size={20} />
                         </button>
@@ -190,11 +192,11 @@ export default function ToolPalette({ tool, setTool, color, setColor, strokeWidt
             )}
 
             {/* Undo */}
-            <button className="btn-icon" title="Undo (Ctrl+Z)" onClick={onUndo} style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconUndo size={20} /></button>
+            <button className="btn-icon" title="Undo last drawing (Ctrl+Z)" aria-label="Undo last drawing" onClick={onUndo} style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconUndo size={20} /></button>
 
             {/* Clear (host only) */}
             {canClear && (
-                <button className="btn-icon" title="Clear board" onClick={onClear}
+                <button className="btn-icon" title="Clear all drawings from board" aria-label="Clear all drawings from board" onClick={onClear}
                     style={{ width: 40, height: 40, color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconTrash size={20} /></button>
             )}
         </div>
