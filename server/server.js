@@ -89,7 +89,14 @@ const authLimiter = rateLimit({
   message: 'Too many authentication attempts. Please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.originalUrl.includes('/api/auth/google'), // Google OAuth has its own limiter
+  skip: (req) => {
+    const path = req.originalUrl;
+    return (
+      path.startsWith('/api/auth/google') ||
+      path.startsWith('/api/auth/me') ||
+      path.startsWith('/api/auth/logout')
+    );
+  },
 });
 
 // Google OAuth routes are browser redirects; give them their own generous limiter
