@@ -175,6 +175,26 @@ const initSockets = (io) => {
             socket.to(roomId).emit('erase_strokes', { strokeIds });
         });
 
+        // ─── PARTIAL ERASE (segment-aware: replaces one stroke with 0-N sub-strokes) ──
+        socket.on('stroke_partial_erase', ({ originalId, replacements }) => {
+            const { roomId, userId } = socket.data;
+            if (!roomId || !originalId) return;
+            const state = getRoomState(roomId);
+            if (!state.activeEditors.includes(userId) && !isHostSocket(state, userId)) return;
+            // Only allow the stroke's owner to partially erase it
+            const original = state.strokes.find(s => s.id === originalId);
+            if (!original || original.userId !== userId) return;
+            // Replace the original stroke with the remaining segments
+            state.strokes = state.strokes.filter(s => s.id !== originalId);
+            if (Array.isArray(replacements) && replacements.length > 0) {
+                // Validate replacements belong to the same user before persisting
+                const safe = replacements.map(r => ({ ...r, userId }));
+                state.strokes.push(...safe);
+                if (state.strokes.length > 500) state.strokes.splice(0, state.strokes.length - 500);
+            }
+            socket.to(roomId).emit('stroke_partial_erase', { originalId, replacements });
+        });
+
         // ─── BOARD PHOTOS / PDF (host only; synced to all participants) ─────────────
         socket.on('board_photos', (data) => {
             const { roomId, userId } = socket.data;

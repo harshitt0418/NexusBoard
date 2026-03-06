@@ -9,25 +9,37 @@ let lastEmit = 0;
 
 const defaultPhotosTransform = { offsetX: 0, offsetY: 0, scale: 1 };
 
-// Returns IDs of strokes owned by `userId` that the eraser path touched.
-// rawEraserPoints are in canvas-pixel space; stroke points are normalised (0-1).
-function getErasedStrokeIds(rawEraserPoints, allStrokes, strokeWidth, cw, ch, userId) {
-    if (!rawEraserPoints.length || !allStrokes.length) return [];
-    const eraserRadius = Math.max(strokeWidth * 3, 12) / 2;
+// For each stroke point, return null if any eraser point is within eraserRadius; else return the point.
+// rawEraserPoints and the returned pixel coords are in canvas-pixel space;
+// stroke points are normalised (0-1) and scaled by cw/ch.
+function eraseStrokePoints(strokePoints, rawEraserPoints, eraserRadius, cw, ch) {
     const r2 = eraserRadius * eraserRadius;
-    return allStrokes
-        .filter(s => s.userId === userId && s.tool !== 'eraser')
-        .filter(s => {
-            for (const ep of rawEraserPoints) {
-                for (const sp of s.points) {
-                    const dx = ep.x - sp.x * cw;
-                    const dy = ep.y - sp.y * ch;
-                    if (dx * dx + dy * dy <= r2) return true;
-                }
-            }
-            return false;
-        })
-        .map(s => s.id);
+    return strokePoints.map(sp => {
+        const px = sp.x * cw;
+        const py = sp.y * ch;
+        for (const ep of rawEraserPoints) {
+            const dx = ep.x - px;
+            const dy = ep.y - py;
+            if (dx * dx + dy * dy <= r2) return null;
+        }
+        return sp;
+    });
+}
+
+// Splits a nullable-point array into groups of ≥2 consecutive non-null points.
+function splitIntoSegments(nullablePoints) {
+    const segments = [];
+    let current = [];
+    for (const pt of nullablePoints) {
+        if (pt !== null) {
+            current.push(pt);
+        } else {
+            if (current.length >= 2) segments.push([...current]);
+            current = [];
+        }
+    }
+    if (current.length >= 2) segments.push(current);
+    return segments;
 }
 
 export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, photos = [], photosTransform, onPhotosTransformChange, canMovePdf = false }) {
@@ -256,6 +268,13 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             strokesRef.current = strokesRef.current.filter(s => !toRemove.has(s.id));
             redrawAll();
         });
+        socket.on('stroke_partial_erase', ({ originalId, replacements }) => {
+            strokesRef.current = strokesRef.current.filter(s => s.id !== originalId);
+            if (Array.isArray(replacements) && replacements.length > 0) {
+                strokesRef.current.push(...replacements);
+            }
+            redrawAll();
+        });
         socket.on('cursor_move', ({ userId: uid, userName: un, x, y }) => {
             setRemoteCursors(prev => ({ ...prev, [uid]: { name: un, x, y, ts: Date.now() } }));
         });
@@ -264,6 +283,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             socket.off('board_clear');
             socket.off('board_undo');
             socket.off('erase_strokes');
+            socket.off('stroke_partial_erase');
             socket.off('cursor_move');
         };
     }, [socket, redrawAll]);
@@ -357,20 +377,24 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         e.preventDefault();
         currentStroke.current.push({ x: pos.x, y: pos.y });
         if (tool === 'eraser') {
-            // Redraw-based preview: only hide owned strokes under the eraser.
+            // Redraw-based preview: show partial erasure of owned strokes as the eraser moves.
             // Never apply destination-out to the canvas during drag, which would
             // temporarily erase other users' strokes.
             const canvas = strokeCanvasRef.current;
             if (canvas) {
                 const cw = canvas.width || 1;
                 const ch = canvas.height || 1;
-                const erasedIds = getErasedStrokeIds(
-                    currentStroke.current, strokesRef.current, strokeWidth, cw, ch, myUserId
-                );
-                const toHide = new Set(erasedIds);
-                redrawStrokesOnly(strokesRef.current.filter(s => !toHide.has(s.id)));
+                const eraserRadius = Math.max(strokeWidth * 3, 12) / 2;
+                const previewStrokes = strokesRef.current.flatMap(s => {
+                    if (s.userId !== myUserId || s.tool === 'eraser') return [s];
+                    const nullable = eraseStrokePoints(s.points, currentStroke.current, eraserRadius, cw, ch);
+                    const segs = splitIntoSegments(nullable);
+                    if (segs.length === 0) return [];
+                    return segs.map((pts, i) => ({ ...s, id: `${s.id}_preview_${i}`, points: pts }));
+                });
+                redrawStrokesOnly(previewStrokes);
             }
-            // Do NOT emit board_draw 'move' for eraser; erase_strokes is sent on mouseup.
+            // Do NOT emit board_draw 'move' for eraser; stroke_partial_erase is sent on mouseup.
         } else {
             const ctx = ctxRef.current;
             drawPoint(ctx, pos.x, pos.y, lastPos.current.x, lastPos.current.y, color, strokeWidth, tool);
@@ -410,16 +434,31 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         const ch = canvas?.height || 1;
 
         if (tool === 'eraser') {
-            // Ownership-aware erase: only remove strokes the current user created
-            const erasedIds = getErasedStrokeIds(
-                currentStroke.current, strokesRef.current, strokeWidth, cw, ch, myUserId
-            );
-            if (erasedIds.length > 0) {
-                const toRemove = new Set(erasedIds);
-                strokesRef.current = strokesRef.current.filter(s => !toRemove.has(s.id));
-                socket?.emit('erase_strokes', { strokeIds: erasedIds });
+            // Ownership-aware partial erase: only modify strokes the current user created.
+            const eraserRadius = Math.max(strokeWidth * 3, 12) / 2;
+            const newStrokes = [];
+            for (const s of strokesRef.current) {
+                if (s.userId !== myUserId || s.tool === 'eraser') {
+                    newStrokes.push(s);
+                    continue;
+                }
+                const nullable = eraseStrokePoints(s.points, currentStroke.current, eraserRadius, cw, ch);
+                const hitAny = nullable.some(p => p === null);
+                if (!hitAny) {
+                    newStrokes.push(s);
+                    continue;
+                }
+                const segs = splitIntoSegments(nullable);
+                const replacements = segs.map((pts, i) => ({
+                    ...s,
+                    id: `${s.id}_e${Date.now()}_${i}`,
+                    points: pts,
+                }));
+                newStrokes.push(...replacements);
+                socket?.emit('stroke_partial_erase', { originalId: s.id, replacements });
             }
-            // Always redraw to clear the temporary destination-out preview
+            strokesRef.current = newStrokes;
+            // Always redraw to clear the preview and apply committed state
             redrawStrokesOnly();
         } else {
             const points = currentStroke.current.map((p) => ({ x: p.x / cw, y: p.y / ch }));
