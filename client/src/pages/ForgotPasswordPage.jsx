@@ -87,11 +87,6 @@ export default function ForgotPasswordPage() {
         </AuthLayout>
     );
 }
-
-
-export default function ForgotPasswordPage() {
-    const toast = useToast();
-    const navigate = useNavigate();
     const [step, setStep] = useState('email');
     const [email, setEmail] = useState('');
     const [otp, setOTP] = useState('');
