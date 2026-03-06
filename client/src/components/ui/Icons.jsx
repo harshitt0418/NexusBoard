@@ -349,6 +349,19 @@ export function IconSync({ size, className, style }) {
     );
 }
 
+export function IconTemporaryBrush({ size, className, style }) {
+    return (
+        <IconWrapper size={size} className={className} style={style}>
+            {/* Pen nib */}
+            <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4 12.5-12.5z" />
+            {/* Fading dots to suggest the stroke disappears */}
+            <circle cx="13" cy="21" r="0.8" fill="currentColor" stroke="none" opacity="0.8" />
+            <circle cx="16" cy="21" r="0.8" fill="currentColor" stroke="none" opacity="0.5" />
+            <circle cx="19" cy="21" r="0.8" fill="currentColor" stroke="none" opacity="0.25" />
+        </IconWrapper>
+    );
+}
+
 export function IconRocket({ size, className, style }) {
     return (
         <IconWrapper size={size} className={className} style={style}>

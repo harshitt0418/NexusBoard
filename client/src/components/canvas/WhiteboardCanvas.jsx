@@ -4,6 +4,8 @@ import { useRoom } from '../../context/RoomContext';
 import { IconEye } from '../ui/Icons';
 
 const THROTTLE_MS = 16; // ~60fps
+const STROKE_VISIBLE_TIME = 3000; // ms before fade starts
+const STROKE_FADE_TIME    = 2000; // ms fade duration
 
 let lastEmit = 0;
 
@@ -58,6 +60,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
     const lastPos = useRef(null);
     const strokesRef = useRef([]);
     const currentStroke = useRef([]);
+    const fadeLoopRef = useRef(null); // rAF id for temporary-stroke fade animation
     const { socket } = useSocket();
     const { canDraw, myUserId, myName, strokes } = useRoom();
     const [remoteCursors, setRemoteCursors] = useState({});
@@ -101,6 +104,17 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         const scaleX = (v) => (v != null && v <= 1.1 ? v * cw : v);
         const scaleY = (v) => (v != null && v <= 1.1 ? v * ch : v);
         const isEraser = stroke.tool === 'eraser';
+
+        // Compute opacity for temporary strokes
+        let alpha = 1;
+        if (stroke.type === 'temporary' && stroke.createdAt) {
+            const age = Date.now() - stroke.createdAt;
+            if (age > STROKE_VISIBLE_TIME) {
+                alpha = Math.max(0, 1 - (age - STROKE_VISIBLE_TIME) / STROKE_FADE_TIME);
+            }
+        }
+        ctx.globalAlpha = alpha;
+
         ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
         ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : stroke.color;
         ctx.lineWidth = isEraser ? Math.max(stroke.width * 3, 12) : stroke.width;
@@ -119,6 +133,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             ctx.quadraticCurveTo(x0, y0, xc, yc);
         }
         ctx.stroke();
+        ctx.globalAlpha = 1;
         ctx.globalCompositeOperation = 'source-over';
     };
 
@@ -170,7 +185,13 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
 
     useEffect(() => {
         window.addEventListener('resize', resizeBoth);
-        return () => window.removeEventListener('resize', resizeBoth);
+        return () => {
+            window.removeEventListener('resize', resizeBoth);
+            if (fadeLoopRef.current !== null) {
+                cancelAnimationFrame(fadeLoopRef.current);
+                fadeLoopRef.current = null;
+            }
+        };
     }, [resizeBoth]);
 
     useEffect(() => {
@@ -215,6 +236,25 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         redrawStrokesOnly(allStrokes);
     }, [redrawStrokesOnly]);
 
+    // Runs an rAF loop while temporary strokes are fading.
+    // Prunes fully-expired strokes on each frame and redraws until none remain.
+    const startFadeLoop = useCallback(() => {
+        if (fadeLoopRef.current !== null) return; // already running
+        const tick = () => {
+            const now = Date.now();
+            const hadTemporary = strokesRef.current.some(s => s.type === 'temporary');
+            if (!hadTemporary) { fadeLoopRef.current = null; return; }
+            // Remove strokes that have fully faded
+            strokesRef.current = strokesRef.current.filter(s => {
+                if (s.type !== 'temporary') return true;
+                return now - s.createdAt < STROKE_VISIBLE_TIME + STROKE_FADE_TIME;
+            });
+            redrawStrokesOnly();
+            fadeLoopRef.current = requestAnimationFrame(tick);
+        };
+        fadeLoopRef.current = requestAnimationFrame(tick);
+    }, [redrawStrokesOnly]);
+
     const drawPoint = (ctx, x, y, prevX, prevY, strokeColor, width, t) => {
         if (!ctx) return;
         const isEraser = t === 'eraser';
@@ -251,6 +291,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             } else if (data.type === 'end' && data.stroke) {
                 strokesRef.current.push(data.stroke);
                 redrawAll();
+                if (data.stroke.type === 'temporary') startFadeLoop();
             }
         });
         socket.on('board_clear', () => {
@@ -286,7 +327,7 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             socket.off('stroke_partial_erase');
             socket.off('cursor_move');
         };
-    }, [socket, redrawAll]);
+    }, [socket, redrawAll, startFadeLoop]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -462,17 +503,20 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
             redrawStrokesOnly();
         } else {
             const points = currentStroke.current.map((p) => ({ x: p.x / cw, y: p.y / ch }));
+            const isTemporary = tool === 'temporaryBrush';
             const stroke = {
                 id: `${myUserId}-${Date.now()}`,
                 userId: myUserId,
                 points,
                 color,
                 width: strokeWidth,
-                tool,
+                tool: isTemporary ? 'pen' : tool, // render as pen; type flag carries the temporary info
+                ...(isTemporary ? { type: 'temporary', createdAt: Date.now() } : {}),
             };
             strokesRef.current.push(stroke);
             redrawStrokesOnly();
             socket?.emit('board_draw', { type: 'end', stroke });
+            if (isTemporary) startFadeLoop();
         }
         lastPos.current = null;
         currentStroke.current = [];

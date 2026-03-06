@@ -1,9 +1,10 @@
-import { IconPen, IconEraser, IconSelect, IconUndo, IconTrash, IconPdf, IconImage, IconImageOff, IconArrowLeft, IconArrowRight, IconPlus, IconMinus, IconSync } from '../ui/Icons';
+import { IconPen, IconEraser, IconSelect, IconUndo, IconTrash, IconPdf, IconImage, IconImageOff, IconArrowLeft, IconArrowRight, IconPlus, IconMinus, IconSync, IconTemporaryBrush } from '../ui/Icons';
 
 const TOOLS = [
-    { id: 'pen',    Icon: IconPen,    label: 'Draw',   tooltip: 'Draw on board',          ariaLabel: 'Draw on board' },
-    { id: 'eraser', Icon: IconEraser, label: 'Erase',  tooltip: 'Erase drawings',         ariaLabel: 'Erase drawings' },
-    { id: 'select', Icon: IconSelect, label: 'Select',  tooltip: 'Select / Move',          ariaLabel: 'Select or move PDF / screenshot' },
+    { id: 'pen',             Icon: IconPen,             label: 'Draw',   tooltip: 'Draw on board',                    ariaLabel: 'Draw on board' },
+    { id: 'temporaryBrush', Icon: IconTemporaryBrush, label: 'Temp',   tooltip: 'Temporary Brush (auto disappears)', ariaLabel: 'Temporary brush — stroke fades away' },
+    { id: 'eraser',          Icon: IconEraser,          label: 'Erase',  tooltip: 'Erase drawings',                   ariaLabel: 'Erase drawings' },
+    { id: 'select',          Icon: IconSelect,          label: 'Select', tooltip: 'Select / Move',                    ariaLabel: 'Select or move PDF / screenshot' },
 ];
 
 const COLORS = ['#0F172A', '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#F97316', '#FFFFFF'];
