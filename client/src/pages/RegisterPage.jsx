@@ -150,10 +150,6 @@ export default function RegisterPage() {
         </AuthLayout>
     );
 }
-
-    const toast = useToast();
-
-    const [formData, setFormData] = useState({ name: '', email: '', password: '' });
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
