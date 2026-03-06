@@ -62,12 +62,9 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     const register = useCallback(async (name, email, password) => {
-        const { data } = await api.post('/auth/register', { name, email, password }, { withCredentials: true });
-        if (data.token) {
-            localStorage.setItem('nb_token', data.token);
-            api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`;
-        }
-        setUser(data.user);
+        // With magic link flow, registration sends a verification email.
+        // The user is NOT logged in until they verify. Just return the server message.
+        const { data } = await api.post('/auth/register', { name, email, password });
         return data;
     }, []);
 

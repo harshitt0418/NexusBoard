@@ -9,7 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import NewLoginPage from './pages/NewLoginPage';
 import RegisterPage from './pages/RegisterPage';
-import VerifyOTPPage from './pages/VerifyOTPPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
@@ -67,7 +67,7 @@ export default function App() {
                   <Route path="/auth" element={<Navigate to="/login" replace />} />
                   <Route path="/login" element={<NewLoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
-                  <Route path="/verify-otp" element={<VerifyOTPPage />} />
+                  <Route path="/verify-email" element={<VerifyEmailPage />} />
                   <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                   <Route path="/reset-password" element={<ResetPasswordPage />} />
                   <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />

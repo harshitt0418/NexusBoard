@@ -5,8 +5,7 @@ const {
     register,
     login,
     getMe,
-    sendOTP,
-    verifyOTP,
+    verifyEmail,
     forgotPassword,
     resetPassword,
     googleCallback,
@@ -18,9 +17,8 @@ const { authenticate } = require('../middleware/auth');
 router.post('/register', register);
 router.post('/login', login);
 
-// OTP authentication
-router.post('/send-otp', sendOTP);
-router.post('/verify-otp', verifyOTP);
+// Magic link email verification
+router.get('/verify-email', verifyEmail);
 
 // Password reset
 router.post('/forgot-password', forgotPassword);
