@@ -60,7 +60,8 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
     const lastPos = useRef(null);
     const strokesRef = useRef([]);
     const currentStroke = useRef([]);
-    const fadeLoopRef = useRef(null); // rAF id for temporary-stroke fade animation
+    const fadeLoopRef = useRef(null);    // rAF or setTimeout id for temporary-stroke fade
+    const fadeIsRafRef = useRef(false);  // true → rAF id, false → setTimeout id
     const { socket } = useSocket();
     const { canDraw, myUserId, myName, strokes } = useRoom();
     const [remoteCursors, setRemoteCursors] = useState({});
@@ -188,8 +189,10 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         return () => {
             window.removeEventListener('resize', resizeBoth);
             if (fadeLoopRef.current !== null) {
-                cancelAnimationFrame(fadeLoopRef.current);
+                if (fadeIsRafRef.current) cancelAnimationFrame(fadeLoopRef.current);
+                else clearTimeout(fadeLoopRef.current);
                 fadeLoopRef.current = null;
+                fadeIsRafRef.current = false;
             }
         };
     }, [resizeBoth]);
@@ -236,23 +239,51 @@ export default function WhiteboardCanvas({ tool, color, strokeWidth, onUndoRef, 
         redrawStrokesOnly(allStrokes);
     }, [redrawStrokesOnly]);
 
-    // Runs an rAF loop while temporary strokes are fading.
-    // Prunes fully-expired strokes on each frame and redraws until none remain.
+    // Runs animation for temporary strokes:
+    //   Phase 1 (fully visible, up to STROKE_VISIBLE_TIME): sleep via setTimeout — zero redraws.
+    //   Phase 2 (fading, STROKE_FADE_TIME): redraw every rAF frame for smooth opacity transition.
+    // This avoids burning 60fps redraws during the idle visible period.
     const startFadeLoop = useCallback(() => {
         if (fadeLoopRef.current !== null) return; // already running
-        const tick = () => {
+
+        // The rAF tick — runs only once fading has started.
+        const rafTick = () => {
             const now = Date.now();
-            const hadTemporary = strokesRef.current.some(s => s.type === 'temporary');
-            if (!hadTemporary) { fadeLoopRef.current = null; return; }
-            // Remove strokes that have fully faded
+            // Prune fully-expired strokes
             strokesRef.current = strokesRef.current.filter(s => {
                 if (s.type !== 'temporary') return true;
                 return now - s.createdAt < STROKE_VISIBLE_TIME + STROKE_FADE_TIME;
             });
             redrawStrokesOnly();
-            fadeLoopRef.current = requestAnimationFrame(tick);
+            if (strokesRef.current.some(s => s.type === 'temporary')) {
+                fadeIsRafRef.current = true;
+                fadeLoopRef.current = requestAnimationFrame(rafTick);
+            } else {
+                fadeLoopRef.current = null;
+                fadeIsRafRef.current = false;
+            }
         };
-        fadeLoopRef.current = requestAnimationFrame(tick);
+
+        const temps = strokesRef.current.filter(s => s.type === 'temporary');
+        if (temps.length === 0) return;
+
+        // Time until the earliest stroke starts fading
+        const earliestFadeStart = Math.min(...temps.map(s => s.createdAt)) + STROKE_VISIBLE_TIME;
+        const msUntilFade = Math.max(0, earliestFadeStart - Date.now());
+
+        if (msUntilFade > 16) {
+            // Sleep until fading begins — no redraws during the fully-visible period
+            fadeIsRafRef.current = false;
+            fadeLoopRef.current = setTimeout(() => {
+                fadeLoopRef.current = null;
+                fadeIsRafRef.current = true;
+                fadeLoopRef.current = requestAnimationFrame(rafTick);
+            }, msUntilFade);
+        } else {
+            // Already in fade phase — start rAF immediately
+            fadeIsRafRef.current = true;
+            fadeLoopRef.current = requestAnimationFrame(rafTick);
+        }
     }, [redrawStrokesOnly]);
 
     const drawPoint = (ctx, x, y, prevX, prevY, strokeColor, width, t) => {
