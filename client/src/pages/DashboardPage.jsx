@@ -160,22 +160,12 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <div className="db-recent-list" role="list">
-                        {recentRooms.map(room => {
-                            const isLocked = room.role === 'host' || room.isPrivate;
-                            const lockReason = room.role === 'host'
-                                ? 'Start this room from Create a Room'
-                                : 'Private — cannot rejoin directly';
-                            return (
+                        {recentRooms.map(room => (
                             <div
                                 key={room.roomId}
-                                className={`db-recent-item${isLocked ? ' db-recent-item--locked' : ''}`}
+                                className="db-recent-item db-recent-item--locked"
                                 role="listitem"
-                                onClick={!isLocked ? () => navigate(`/join?id=${room.roomId}`) : undefined}
-                                tabIndex={isLocked ? -1 : 0}
-                                aria-label={isLocked ? lockReason : `Rejoin ${room.name} (${room.roomId})`}
-                                aria-disabled={isLocked}
-                                onKeyDown={!isLocked ? (e => e.key === 'Enter' && navigate(`/join?id=${room.roomId}`)) : undefined}
-                                title={isLocked ? lockReason : `Rejoin ${room.name}`}
+                                aria-label={`${room.name} (${room.roomId})`}
                             >
                                 <div className={`db-recent-dot ${room.role}`} aria-hidden="true" />
                                 <div className="db-recent-info">
@@ -186,8 +176,7 @@ export default function DashboardPage() {
                                     {room.role === 'host' ? 'Host' : room.isPrivate ? '🔒 Private' : 'Joined'}
                                 </span>
                             </div>
-                            );
-                        })}
+                        ))}
                     </div>
                 )}
 
