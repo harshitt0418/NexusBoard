@@ -21,6 +21,7 @@ const authRoutes = require('./src/routes/auth');
 const roomRoutes = require('./src/routes/rooms');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const initSockets = require('./src/sockets');
+const { initYjsSignaling } = require('./src/sockets/yjsSignaling');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -137,6 +138,9 @@ app.get('/', (req, res) => res.json({ app: 'NexusBoard API', health: '/health', 
 
 // Socket.io
 initSockets(io);
+
+// Yjs WebRTC Signaling Server
+initYjsSignaling(httpServer);
 
 // Error handler
 app.use(errorHandler);

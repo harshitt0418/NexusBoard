@@ -31,16 +31,20 @@ export function getYjsRoom(roomId, userName) {
 
     // y-webrtc uses public signaling servers by default.
     // It discovers peers via signaling then communicates P2P — minimal server load.
+    // Resolve our custom signaling server WebSocket URL
+    const rawApiUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || window.location.origin;
+    // Keep 'localhost' vs '127.0.0.1' consistent based on what is used
+    let signalingUrl = rawApiUrl.replace(/^http/, 'ws') + '/ywebrtc-signaling';
+    
+    // Fallback if VITE_API_URL isn't set (e.g., local dev)
+    if (signalingUrl.startsWith('ws://localhost:517')) signalingUrl = 'ws://localhost:5000/ywebrtc-signaling';
+
     const provider = new WebrtcProvider(
         `nexusboard-${roomId}`, // unique room name scoped to NexusBoard
         doc,
         {
-            // Public signaling servers (reliable & free tier)
-            signaling: [
-                'wss://signaling.yjs.dev',
-                'wss://y-webrtc-signaling-eu.herokuapp.com',
-                'wss://y-webrtc-signaling-us.herokuapp.com',
-            ],
+            // Use our self-hosted WebSocket signaling server
+            signaling: [signalingUrl],
             // Use same STUN servers as the main WebRTC layer
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
