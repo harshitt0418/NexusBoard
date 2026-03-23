@@ -28,20 +28,29 @@ const httpServer = http.createServer(app);
 
 // Allow same origins as Express (localhost on any port) so socket.io works from 5173, 5174, etc.
 const isAllowedOrigin = (origin) => {
-  if (!origin) return true; // server-to-server
+  if (!origin) return true; // server-to-server / non-browser
   if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
-  // Allow Vercel preview deployments (*.vercel.app)
-  if (origin && origin.endsWith('.vercel.app')) return true;
-  if (origin === 'http://localhost:5173') return true;
-  if (origin === 'http://localhost:5174') return true;
-  if (origin.startsWith('http://127.0.0.1:')) return true;
+  // Allow any Vercel deployment (preview and production)
+  if (origin.endsWith('.vercel.app')) return true;
+  // Allow any netlify deployment
+  if (origin.endsWith('.netlify.app')) return true;
+  // Allow localhost on any port
   if (origin.startsWith('http://localhost:')) return true;
+  if (origin.startsWith('http://127.0.0.1:')) return true;
   return false;
 };
 
+// For credentialed requests (withCredentials: true), we MUST echo back the exact
+// origin string — browsers reject `Access-Control-Allow-Origin: *` with credentials.
 const allowedSocketOrigin = (origin, callback) => {
-  callback(null, isAllowedOrigin(origin) ? origin : false);
+  if (isAllowedOrigin(origin)) {
+    callback(null, origin || true); // echo the exact origin back
+  } else {
+    console.warn('[CORS] Blocked origin:', origin);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  }
 };
+
 
 const io = new Server(httpServer, {
   cors: {
@@ -55,7 +64,12 @@ const io = new Server(httpServer, {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: (origin, callback) => {
-    callback(null, isAllowedOrigin(origin) ? origin : false);
+    if (isAllowedOrigin(origin)) {
+      callback(null, origin || true);
+    } else {
+      console.warn('[CORS] Blocked origin:', origin);
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

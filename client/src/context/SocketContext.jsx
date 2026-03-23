@@ -13,14 +13,21 @@ export const SocketProvider = ({ children }) => {
             autoConnect: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,
-            reconnectionDelayMax: 8000,
-            timeout: 20000,
-            transports: ['websocket', 'polling'],
+            reconnectionDelayMax: 5000,
+            timeout: 60000, // Render free tier can take up to 60s to wake
+            // Start with polling so the HTTP handshake succeeds first,
+            // then upgrade to WebSocket. This is critical for cross-origin
+            // deployments on Render + Vercel where raw WS can be blocked.
+            transports: ['polling', 'websocket'],
+            withCredentials: true,
         });
         setSocket(s);
         s.on('connect', () => setConnected(true));
         s.on('disconnect', () => setConnected(false));
-        s.on('connect_error', () => setConnected(false));
+        s.on('connect_error', (err) => {
+            console.warn('[Socket] connect_error:', err.message);
+            setConnected(false);
+        });
         return () => { s.disconnect(); };
     }, []);
 
