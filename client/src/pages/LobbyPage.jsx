@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { renderCanvas, destroyCanvas } from '../components/ui/canvas';
 import { useSocket } from '../context/SocketContext';
@@ -36,6 +36,7 @@ export default function LobbyPage() {
     const [hostNotPresent, setHostNotPresent] = useState(false);
     // 'pending' | 'host_not_present' | 'joined' — only show lobby UI after 'joined' (room_state received)
     const [joinStatus, setJoinStatus] = useState('pending');
+    const [wakeupSeconds, setWakeupSeconds] = useState(0);
 
     const fromState = location.state || {};
     const userId = fromState.userId || localStorage.getItem('nb_user_id');
@@ -119,13 +120,13 @@ export default function LobbyPage() {
             onConnect();
         }
 
-        // Retry join every 2s until we get room_state (for both host and participant; recovers from lost first emit)
+        // Retry join every 1.5s until we get room_state (for both host and participant; recovers from lost first emit)
         retryJoinTimerRef.current = setInterval(() => {
             if (!joinedSuccessRef.current && socket.connected) {
                 joinedRef.current = false;
                 emitJoinRoom();
             }
-        }, 2000);
+        }, 1500);
 
         return () => {
             if (retryTimerRef.current) clearInterval(retryTimerRef.current);
@@ -156,6 +157,13 @@ export default function LobbyPage() {
     };
 
     useEffect(() => { renderCanvas(); return () => destroyCanvas(); }, []);
+
+    // Wakeup counter: count seconds elapsed while socket is not connected (Render free tier cold start)
+    useEffect(() => {
+        if (connected || joinStatus === 'joined') return;
+        const t = setInterval(() => setWakeupSeconds(s => s + 1), 1000);
+        return () => clearInterval(t);
+    }, [connected, joinStatus]);
 
     // ── Pending: participants see "Connecting..."; host sees lobby immediately so they're never stuck ──
     if (joinStatus === 'pending' && !isHost) {
@@ -270,8 +278,12 @@ export default function LobbyPage() {
                     {isHost ? (
                         <div className="lobby-hint">
                             {joinStatus === 'pending'
-                                ? <><IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />{connected ? 'Joining room…' : 'Connecting to server…'}</>
-                                : <><IconLightbulb size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} /> Share the Room ID, then click <strong>Start Session</strong> when everyone's here.</>}
+                                ? <><IconLoader size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                                    {connected
+                                        ? 'Joining room…'
+                                        : <>Connecting to server{wakeupSeconds > 0 ? <span style={{ opacity: 0.6, marginLeft: 4, fontSize: '0.8em' }}>({wakeupSeconds}s — server may be waking up)</span> : '…'}</>}
+                                </>
+                                : <><IconLightbulb size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Share the Room ID, then click <strong>Start Session</strong> when everyone's here.</> }
                         </div>
                     ) : (
                         <div className="lobby-hint">
