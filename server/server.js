@@ -13,6 +13,7 @@ const morgan = require('morgan');
 const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const rateLimit = require('express-rate-limit');
 const passport = require('./src/config/passport');
 
@@ -69,6 +70,11 @@ app.use(
     secret: process.env.SESSION_SECRET || 'nexusboard-session-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_URI || 'mongodb://localhost:27017/nexusboard',
+      ttl: 24 * 60 * 60, // 24 hours
+      autoRemove: 'native'
+    }),
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
