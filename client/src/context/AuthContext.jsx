@@ -8,6 +8,19 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // SAFARI GOOGLE AUTH FIX:
+        // After a Google OAuth redirect, Safari's ITP may have blocked the httpOnly cookie.
+        // The server passes the JWT as `auth_token` param so we can set it as a first-party token.
+        const params = new URLSearchParams(window.location.search);
+        const authToken = params.get('auth_token');
+        if (authToken) {
+            localStorage.setItem('nb_token', authToken);
+            api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`;
+            // Clean the token from the URL without reload (don't expose it in history)
+            const cleanUrl = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+
         // Check if user authenticated via cookie (new auth system)
         api.get('/auth/me')
             .then(({ data }) => setUser(data.user))

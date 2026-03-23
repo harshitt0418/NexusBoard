@@ -43,6 +43,10 @@ export default function LoginPage() {
         if (googleAuthInProgress.current) return;
         googleAuthInProgress.current = true;
         setIsGoogleLoggingIn(true);
+
+        // Use server-side OAuth redirect — works in ALL browsers including Safari.
+        // Safari blocks Firebase popup-based auth due to ITP (Intelligent Tracking Prevention)
+        // and strict third-party cookie policies. A redirect avoids all popup/cookie issues.
         const base = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
         window.location.href = `${base}/api/auth/google`;
     };

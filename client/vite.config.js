@@ -12,9 +12,15 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      'simple-peer': 'simple-peer/simplepeer.min.js',
-    },
+    alias: [
+      // Map bare 'simple-peer' import to the minified bundle.
+      // Use regex to avoid matching 'simple-peer/simplepeer.min.js' (used by y-webrtc)
+      // which would produce a double-resolved path like 'simple-peer/simplepeer.min.js/simplepeer.min.js'.
+      {
+        find: /^simple-peer$/,
+        replacement: 'simple-peer/simplepeer.min.js',
+      },
+    ],
   },
   optimizeDeps: {
     include: ['pdfjs-dist'],

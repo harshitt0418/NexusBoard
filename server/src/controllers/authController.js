@@ -1,4 +1,4 @@
-﻿const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { sendEmail } = require('../utils/sendEmail');
@@ -153,6 +153,8 @@ exports.googleCallback = async (req, res) => {
     if (!user) throw createError('Authentication failed', 401);
 
     const token = signToken(user._id);
+
+    // Set the auth cookie (works for Chrome/Edge/Firefox with proper CORS headers)
     res.cookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -160,7 +162,11 @@ exports.googleCallback = async (req, res) => {
         maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}/`);
+    // SAFARI FIX: Safari's ITP blocks cookies set in cross-origin redirects.
+    // Pass the token as a URL query param so the client can set it as a first-party cookie.
+    // This is safe because HTTPS + short-lived tokens mitigate token-in-URL risks.
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}/?auth_token=${encodeURIComponent(token)}`);
 };
 
 // ============================================

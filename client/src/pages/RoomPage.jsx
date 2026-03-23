@@ -11,6 +11,7 @@ import VideoStrip from '../components/video/VideoStrip';
 import VideoFocusPanel from '../components/video/VideoFocusPanel';
 import { IconLogo, IconLock, IconFocus, IconFocusExit, IconPeople, IconChat, IconLogOut, IconCheck, IconClose } from '../components/ui/Icons';
 import { getPdfNumPages, pdfPageToDataUrl } from '../utils/pdfToImage';
+import { getYjsRoom, destroyYjsRoom } from '../lib/yjsCollaboration';
 
 export default function RoomPage() {
     const navigate = useNavigate();
@@ -84,6 +85,20 @@ export default function RoomPage() {
     useEffect(() => { activeEditorsRef.current = activeEditors; }, [activeEditors]);
 
     const MAX_CHAT_STORED = 500;
+
+    // ── Yjs collaborative state (additive — does not replace existing socket logic) ───
+    const yjsRef = useRef(null);
+    useEffect(() => {
+        if (!normalizedRoomId) return;
+        // Initialize Yjs doc + y-webrtc provider for this room
+        const yjsRoom = getYjsRoom(normalizedRoomId, userName || 'Anonymous');
+        yjsRef.current = yjsRoom;
+        console.log('[Yjs] Collaboration active for room:', normalizedRoomId);
+        return () => {
+            destroyYjsRoom(normalizedRoomId);
+            yjsRef.current = null;
+        };
+    }, [normalizedRoomId, userName]);
 
     // ── Socket join ────────────────────────────────────────────────────────────
     useEffect(() => {
@@ -343,12 +358,25 @@ export default function RoomPage() {
     // ── WebRTC setup — get camera/mic, then process any queued offers
     useEffect(() => {
         let cancelled = false;
-        const constraints = { video: true, audio: true };
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             toast('Camera and microphone are not supported in this browser.', 'error');
             return;
         }
+
+        // Use explicit constraints: audio first, video second (better Safari compat)
+        const constraints = {
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 48000,
+            },
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user',
+            },
+        };
 
         navigator.mediaDevices.getUserMedia(constraints)
             .then((stream) => {
@@ -361,9 +389,19 @@ export default function RoomPage() {
                     toast('Could not get camera or microphone. Please allow access and refresh.', 'error');
                     return;
                 }
-                let finalStream = stream;
-                const hasAudio = stream.getAudioTracks().length > 0;
+
+                // Validate audio tracks
+                const audioTracks = stream.getAudioTracks();
+                console.log(`[WebRTC] getUserMedia success — audio tracks: ${audioTracks.length}, video tracks: ${stream.getVideoTracks().length}`);
+                audioTracks.forEach(t => {
+                    t.enabled = true; // Ensure audio track is enabled on start
+                    console.log(`[WebRTC] Audio track: ${t.label}, enabled: ${t.enabled}, readyState: ${t.readyState}`);
+                });
+
+                // If no audio track, try requesting audio separately as fallback
+                const hasAudio = audioTracks.length > 0;
                 if (!hasAudio) {
+                    console.warn('[WebRTC] No audio track in initial stream — attempting separate audio request');
                     navigator.mediaDevices.getUserMedia({ video: false, audio: true })
                         .then((audioStream) => {
                             if (cancelled || !localStreamRef.current) {
@@ -372,11 +410,12 @@ export default function RoomPage() {
                             }
                             const audioTrack = audioStream.getAudioTracks()[0];
                             if (audioTrack) {
-                                finalStream.addTrack(audioTrack);
+                                audioTrack.enabled = true;
+                                stream.addTrack(audioTrack);
                                 Object.values(peersRef.current).forEach(({ pc }) => {
-                                    try { pc.addTrack(audioTrack, finalStream); } catch (_) { }
+                                    try { pc.addTrack(audioTrack, stream); } catch (_) { }
                                 });
-                                const withAudio = new MediaStream(finalStream.getTracks());
+                                const withAudio = new MediaStream(stream.getTracks());
                                 localStreamRef.current = withAudio;
                                 setLocalStream(withAudio);
                             }
@@ -384,8 +423,9 @@ export default function RoomPage() {
                         })
                         .catch(() => toast('Microphone not available. Allow mic in browser settings and refresh.', 'error'));
                 }
-                localStreamRef.current = finalStream;
-                setLocalStream(finalStream);
+
+                localStreamRef.current = stream;
+                setLocalStream(stream);
                 
                 // Add tracks to ANY existing peer connections that were created without the stream
                 // This fixes black video when participant joins with delayed media permission
@@ -393,26 +433,26 @@ export default function RoomPage() {
                     try {
                         const senders = pc.getSenders();
                         const existingTrackIds = senders.map(s => s.track?.id).filter(Boolean);
-                        finalStream.getTracks().forEach((track) => {
+                        stream.getTracks().forEach((track) => {
                             if (!existingTrackIds.includes(track.id)) {
-                                pc.addTrack(track, finalStream);
+                                pc.addTrack(track, stream);
                             }
                         });
                     } catch (err) {
-                        console.warn('Failed to add track to existing peer:', err);
+                        console.warn('[WebRTC] Failed to add track to existing peer:', err);
                     }
                 });
                 
                 const pendingOffers = pendingOffersRef.current.splice(0);
                 pendingOffers.forEach(({ fromSocketId, offer, fromUserId, fromUserName }) =>
-                    answerPeerRef.current?.(fromSocketId, offer, finalStream, fromUserId, fromUserName));
+                    answerPeerRef.current?.(fromSocketId, offer, stream, fromUserId, fromUserName));
                 const pendingCreations = pendingPeerCreationsRef.current.splice(0);
                 pendingCreations.forEach(({ targetSocketId, targetUserId, targetName }) =>
-                    createPeerRef.current?.(targetSocketId, targetUserId, targetName, finalStream));
+                    createPeerRef.current?.(targetSocketId, targetUserId, targetName, stream));
             })
             .catch((err) => {
                 if (cancelled) return;
-                console.warn('getUserMedia failed:', err);
+                console.warn('[WebRTC] getUserMedia failed:', err);
                 localStreamRef.current = null;
                 setLocalStream(null);
                 
@@ -425,7 +465,23 @@ export default function RoomPage() {
                 } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
                     message = 'Camera/mic is in use by another app. Close other apps and refresh.';
                 } else if (err.name === 'OverconstrainedError') {
-                    message = 'Camera/microphone settings not supported. Try a different device.';
+                    // Retry with basic constraints if ideal constraints fail (common on mobile/Safari)
+                    console.warn('[WebRTC] OverconstrainedError — retrying with basic constraints');
+                    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+                        .then((stream) => {
+                            if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+                            stream.getAudioTracks().forEach(t => { t.enabled = true; });
+                            localStreamRef.current = stream;
+                            setLocalStream(stream);
+                            const pendingOffers = pendingOffersRef.current.splice(0);
+                            pendingOffers.forEach(({ fromSocketId, offer, fromUserId, fromUserName }) =>
+                                answerPeerRef.current?.(fromSocketId, offer, stream, fromUserId, fromUserName));
+                            const pendingCreations = pendingPeerCreationsRef.current.splice(0);
+                            pendingCreations.forEach(({ targetSocketId, targetUserId, targetName }) =>
+                                createPeerRef.current?.(targetSocketId, targetUserId, targetName, stream));
+                        })
+                        .catch(() => toast('Camera/microphone settings not supported. Try a different device.', 'error'));
+                    return;
                 }
                 toast(message, 'error');
             });
@@ -448,16 +504,20 @@ export default function RoomPage() {
         { urls: 'stun:stun4.l.google.com:19302' },
     ];
 
-    // Always store a new MediaStream clone so React re-renders when tracks are added (fixes black video / no mic when 2nd track arrives)
+    // Store the live stream reference directly (no clone).
+    // Cloning would create a static snapshot that misses future tracks added to the live stream.
+    // React re-renders are triggered by replacing the stream object reference.
     const addPeerStream = useCallback((id, name, stream) => {
         if (!stream || typeof stream.getTracks !== 'function') return;
-        const tracks = stream.getTracks();
-        if (tracks.length === 0) return;
-        const streamClone = new MediaStream(tracks);
+        if (stream.getTracks().length === 0) return;
         setPeers(prev => {
             const existing = prev.find(p => p.userId === id);
-            if (existing) return prev.map(p => (p.userId === id ? { ...p, stream: streamClone } : p));
-            return [...prev, { userId: id, name, stream: streamClone }];
+            // Replace if stream reference changed or this is a new peer
+            if (existing) {
+                if (existing.stream === stream) return prev; // no change needed
+                return prev.map(p => (p.userId === id ? { ...p, stream } : p));
+            }
+            return [...prev, { userId: id, name, stream }];
         });
     }, []);
 
@@ -476,113 +536,156 @@ export default function RoomPage() {
     }, []);
 
     const createPeer = useCallback((targetSocketId, targetUserId, targetName, stream) => {
-        // ── KEY FIX: If a stale peer connection exists for this user (e.g. after refresh),
-        // close it first so we can negotiate a fresh connection.
+        // If a stale peer connection exists (e.g. after refresh), close it and recreate.
         if (peersRef.current[targetUserId]) {
             const stale = peersRef.current[targetUserId];
-            // If the existing PC is still connected and uses the same socket, skip duplicate.
             if (stale.socketId === targetSocketId &&
                 (stale.pc.connectionState === 'connected' || stale.pc.connectionState === 'connecting')) {
                 return;
             }
-            // Otherwise close the stale connection and recreate
             try { stale.pc.close(); } catch (_) { }
             delete peersRef.current[targetUserId];
             setPeers((p) => p.filter((x) => x.userId !== targetUserId));
         }
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-        const remoteStream = new MediaStream();
 
+        // ── ontrack: use event.streams[0] — most reliable cross-browser approach.
+        // Safari requires this; building a MediaStream incrementally can miss tracks.
         pc.ontrack = (e) => {
-            if (e.track) {
-                remoteStream.addTrack(e.track);
-                addPeerStream(targetUserId, targetName, remoteStream);
+            console.log(`[WebRTC] ontrack (offerer→${targetUserId}): kind=${e.track.kind}, streams=${e.streams.length}`);
+            const incomingStream = e.streams?.[0];
+            if (incomingStream) {
+                // Use the stream directly from the event — all tracks are already present
+                addPeerStream(targetUserId, targetName, incomingStream);
+            } else if (e.track) {
+                // Fallback: build stream manually (shouldn't happen normally)
+                addPeerTrack(targetUserId, targetName, e.track, null);
             }
         };
         pc.onicecandidate = (e) => {
-            if (e.candidate && socket) socket.emit('webrtc_ice', { targetSocketId, candidate: e.candidate });
+            if (e.candidate && socket) {
+                console.log(`[WebRTC] ICE candidate (offerer→${targetUserId}):`, e.candidate.type);
+                socket.emit('webrtc_ice', { targetSocketId, candidate: e.candidate });
+            }
+        };
+        pc.oniceconnectionstatechange = () => {
+            console.log(`[WebRTC] ICE connection state (offerer→${targetUserId}): ${pc.iceConnectionState}`);
+        };
+        pc.onsignalingstatechange = () => {
+            console.log(`[WebRTC] Signaling state (offerer→${targetUserId}): ${pc.signalingState}`);
         };
         pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state (offerer→${targetUserId}): ${pc.connectionState}`);
             if (pc.connectionState === 'connected') {
+                // Fallback: if ontrack fired without streams, check receivers directly
                 try {
-                    pc.getReceivers().forEach((r) => {
-                        if (r.track && !remoteStream.getTracks().some((t) => t.id === r.track.id)) remoteStream.addTrack(r.track);
-                    });
-                    if (remoteStream.getTracks().length > 0) addPeerStream(targetUserId, targetName, remoteStream);
+                    const receivers = pc.getReceivers();
+                    if (receivers.length > 0) {
+                        const fallbackStream = new MediaStream(receivers.map(r => r.track).filter(Boolean));
+                        if (fallbackStream.getTracks().length > 0) addPeerStream(targetUserId, targetName, fallbackStream);
+                    }
                 } catch (_) { }
             }
-            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') toast('Video connection issue. Check camera/mic and try again.', 'error');
+            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+                toast('Video connection issue. Check camera/mic and try again.', 'error');
+            }
             if (pc.connectionState === 'closed') {
                 delete peersRef.current[targetUserId];
                 setPeers((p) => p.filter((x) => x.userId !== targetUserId));
             }
         };
 
-        if (stream) stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+        // Add all local tracks (audio + video) to the peer connection
+        if (stream) {
+            stream.getTracks().forEach((track) => {
+                pc.addTrack(track, stream);
+                console.log(`[WebRTC] Added local track to PC (offerer): kind=${track.kind}, enabled=${track.enabled}`);
+            });
+        }
 
-        pc.createOffer()
+        // Safari: use explicit H.264 preference in SDP offer for better compatibility
+        pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
             .then((offer) => pc.setLocalDescription(offer))
             .then(() => {
                 if (socket) socket.emit('webrtc_offer', { targetSocketId, offer: pc.localDescription });
             })
             .catch((err) => {
-                console.warn('Create offer failed:', err);
+                console.warn('[WebRTC] Create offer failed:', err);
                 toast('Failed to start video connection', 'error');
             });
 
         peersRef.current[targetUserId] = { pc, socketId: targetSocketId };
-    }, [socket, addPeerStream, toast]);
+    }, [socket, addPeerStream, addPeerTrack, toast]);
 
     const answerPeer = useCallback((fromSocketId, offer, stream, fromUserId, fromUserName) => {
         const remoteUserId = fromUserId || fromSocketId;
         const remoteName = fromUserName || 'Participant';
 
-        // ── KEY FIX: If a stale peer connection exists (e.g. they refreshed and are sending
-        // a fresh offer), close it and create a brand-new RTCPeerConnection to answer properly.
         if (peersRef.current[remoteUserId]) {
             const stale = peersRef.current[remoteUserId];
-            // If same socket and still alive, just set the remote description (renegotiation)
             if (stale.socketId === fromSocketId &&
                 (stale.pc.connectionState === 'connected' || stale.pc.connectionState === 'connecting')) {
                 stale.pc.setRemoteDescription(new RTCSessionDescription(offer)).catch(() => { });
                 return;
             }
-            // Different socket (they refreshed) — close stale and rebuild
             try { stale.pc.close(); } catch (_) { }
             delete peersRef.current[remoteUserId];
             setPeers((p) => p.filter((x) => x.userId !== remoteUserId));
         }
 
         const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-        const remoteStream = new MediaStream();
 
+        // ── ontrack: use event.streams[0] — most reliable cross-browser approach.
+        // Safari requires this; building a MediaStream incrementally can miss tracks.
         pc.ontrack = (e) => {
-            if (e.track) {
-                remoteStream.addTrack(e.track);
-                addPeerStream(remoteUserId, remoteName, remoteStream);
+            console.log(`[WebRTC] ontrack (answerer←${remoteUserId}): kind=${e.track.kind}, streams=${e.streams.length}`);
+            const incomingStream = e.streams?.[0];
+            if (incomingStream) {
+                addPeerStream(remoteUserId, remoteName, incomingStream);
+            } else if (e.track) {
+                addPeerTrack(remoteUserId, remoteName, e.track, null);
             }
         };
         pc.onicecandidate = (e) => {
-            if (e.candidate && socket) socket.emit('webrtc_ice', { targetSocketId: fromSocketId, candidate: e.candidate });
+            if (e.candidate && socket) {
+                console.log(`[WebRTC] ICE candidate (answerer←${remoteUserId}):`, e.candidate.type);
+                socket.emit('webrtc_ice', { targetSocketId: fromSocketId, candidate: e.candidate });
+            }
+        };
+        pc.oniceconnectionstatechange = () => {
+            console.log(`[WebRTC] ICE connection state (answerer←${remoteUserId}): ${pc.iceConnectionState}`);
+        };
+        pc.onsignalingstatechange = () => {
+            console.log(`[WebRTC] Signaling state (answerer←${remoteUserId}): ${pc.signalingState}`);
         };
         pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state (answerer←${remoteUserId}): ${pc.connectionState}`);
             if (pc.connectionState === 'connected') {
                 try {
-                    pc.getReceivers().forEach((r) => {
-                        if (r.track && !remoteStream.getTracks().some((t) => t.id === r.track.id)) remoteStream.addTrack(r.track);
-                    });
-                    if (remoteStream.getTracks().length > 0) addPeerStream(remoteUserId, remoteName, remoteStream);
+                    const receivers = pc.getReceivers();
+                    if (receivers.length > 0) {
+                        const fallbackStream = new MediaStream(receivers.map(r => r.track).filter(Boolean));
+                        if (fallbackStream.getTracks().length > 0) addPeerStream(remoteUserId, remoteName, fallbackStream);
+                    }
                 } catch (_) { }
             }
-            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') toast('Video connection issue. Check camera/mic and try again.', 'error');
+            if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+                toast('Video connection issue. Check camera/mic and try again.', 'error');
+            }
             if (pc.connectionState === 'closed') {
                 delete peersRef.current[remoteUserId];
                 setPeers((p) => p.filter((x) => x.userId !== remoteUserId));
             }
         };
 
-        if (stream) stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+        // Add all local tracks (audio + video)
+        if (stream) {
+            stream.getTracks().forEach((track) => {
+                pc.addTrack(track, stream);
+                console.log(`[WebRTC] Added local track to PC (answerer): kind=${track.kind}, enabled=${track.enabled}`);
+            });
+        }
 
         pc.setRemoteDescription(new RTCSessionDescription(offer))
             .then(() => pc.createAnswer())
@@ -591,12 +694,12 @@ export default function RoomPage() {
                 if (socket) socket.emit('webrtc_answer', { targetSocketId: fromSocketId, answer: pc.localDescription });
             })
             .catch((err) => {
-                console.warn('Create answer failed:', err);
+                console.warn('[WebRTC] Create answer failed:', err);
                 toast('Failed to accept video connection', 'error');
             });
 
         peersRef.current[remoteUserId] = { pc, socketId: fromSocketId };
-    }, [socket, addPeerStream, toast]);
+    }, [socket, addPeerStream, addPeerTrack, toast]);
 
     // Keep stable refs in sync so that once-registered socket handlers always call the latest functions
     createPeerRef.current = createPeer;
