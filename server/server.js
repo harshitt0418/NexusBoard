@@ -26,29 +26,13 @@ const { initYjsSignaling } = require('./src/sockets/yjsSignaling');
 const app = express();
 const httpServer = http.createServer(app);
 
-// Allow same origins as Express (localhost on any port) so socket.io works from 5173, 5174, etc.
-const isAllowedOrigin = (origin) => {
-  if (!origin) return true; // server-to-server / non-browser
-  if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return true;
-  // Allow any Vercel deployment (preview and production)
-  if (origin.endsWith('.vercel.app')) return true;
-  // Allow any netlify deployment
-  if (origin.endsWith('.netlify.app')) return true;
-  // Allow localhost on any port
-  if (origin.startsWith('http://localhost:')) return true;
-  if (origin.startsWith('http://127.0.0.1:')) return true;
-  return false;
-};
-
-// For credentialed requests (withCredentials: true), we MUST echo back the exact
-// origin string — browsers reject `Access-Control-Allow-Origin: *` with credentials.
+// ── CORS ─────────────────────────────────────────────────────────────────────
+// Allow all origins so Socket.IO polling handshake works from any deployment.
+// withCredentials: true requires the server to echo the exact request origin
+// back in Access-Control-Allow-Origin (wildcard "*" is forbidden with credentials).
 const allowedSocketOrigin = (origin, callback) => {
-  if (isAllowedOrigin(origin)) {
-    callback(null, origin || true); // echo the exact origin back
-  } else {
-    console.warn('[CORS] Blocked origin:', origin);
-    callback(new Error(`CORS: origin ${origin} not allowed`));
-  }
+  // Always allow — echo back the request origin so credentials work
+  callback(null, origin || true);
 };
 
 
@@ -64,12 +48,8 @@ const io = new Server(httpServer, {
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
   origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) {
-      callback(null, origin || true);
-    } else {
-      console.warn('[CORS] Blocked origin:', origin);
-      callback(new Error(`CORS: origin ${origin} not allowed`));
-    }
+    // Echo back the exact request origin — required for withCredentials: true
+    callback(null, origin || true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
